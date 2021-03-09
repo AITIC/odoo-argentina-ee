@@ -4,6 +4,7 @@ from odoo.exceptions import ValidationError
 from datetime import datetime
 # from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
 import re
+import math
 
 # from odoo.exceptions import ValidationError
 
@@ -22,6 +23,11 @@ def format_amount(amount, padding=15, decimals=2, sep=""):
     if sep:
         res = "{0}{1}{2}".format(res[:-decimals], sep, res[-decimals:])
     return res
+
+
+def round_half_up(n, decimals=0):
+    multiplier = 10 ** decimals
+    return math.floor(n*multiplier + 0.5) / multiplier
 
 
 def get_line_tax_base(move_line):
@@ -60,6 +66,7 @@ class AccountJournal(models.Model):
         ('iibb_aplicado_agip', 'TXT Perc/Ret IIBB aplicadas AGIP'),
         ('iibb_aplicado_api', 'TXT Perc/Ret IIBB aplicadas API'),
         ('iibb_aplicado_sircar', 'TXT Perc/Ret IIBB aplicadas SIRCAR'),
+        ('iibb_aplicado_dgr_mendoza', 'TXT  Perc/Ret IIBB aplicado DGR Mendonza'),
         # ('other', 'Other')
     ])
 
@@ -83,6 +90,109 @@ class AccountJournal(models.Model):
                 ' o "Perc/Ret IIBB aplicadas API"'
                 ' si no tiene instalado el módulo de retenciones'
                 ' automáticas (account_withholding_automatic)'))
+
+    def iibb_aplicado_dgr_mendoza_files_values(self, move_lines):
+
+        self.ensure_one()
+        ret = ''
+        for line in move_lines:
+            # Agente de Retención del Impuesto sobre los Ingresos Brutos
+
+            partner = line.partner_id
+            payment = line.payment_id
+            move = line.move_id
+            tax = line.tax_line_id
+
+            alicuot_line = tax.get_partner_alicuot(partner, line.date)
+            if not alicuot_line:
+                raise ValidationError(_('No hay alicuota configurada en el partner "%s" (id: %s)') % (
+                    partner.name, partner.id))
+
+            if not payment:
+                continue
+
+            # Campo 1: CUIT char(13). CUIT del Sujeto retenido o percibido. Ejemplo: 20-10111222-3
+            # Example "30-58710878-6"
+            partner.cuit_required()
+            content = partner.formated_cuit
+
+            # Campo 2: Denominación char(80). Apellido y Nombre o Razón Social. Formato: 80 posiciones, se completa con
+            # blancos a la derecha.
+            # Example "ELECTRICIDAD MAZA SRL                                                           "
+            content += '{:80.80}'.format(partner.name)
+
+            # Campo 3: Fecha Comprobante char(8). Fecha del Comprobante de Retención/Percepción según Res.40/2012 (ddmmaaaa)
+            # Example s"16052020"
+            content += fields.Date.from_string(move.date).strftime('%d%m%Y')
+
+            # Campo 4: Comprobante char(12)- Número de Comprobante de Retención/Percepción según Res.40/2012.
+            # Formato: 999999999999 (rellenar con ceros (0) a la izquierda) Ejemplo: 000000001521
+            # Example "000000027860"
+            content += (payment.withholding_number or '').rjust(12, '0')[:12]  # we are forcing 12 first numbers always.
+
+            # Campo 5: Fecha Ret./Perc. char(8)- Fecha de efectuada la retención / percepción (ddmmaaaa)
+            # Example "16052020"
+            content += fields.Date.from_string(payment.payment_date).strftime('%d%m%Y')
+
+            # Campo 6. Base Imponible char(15). Formato: 999999999999.99 (doce enteros, punto decimal y dos decimales,
+            # dejando espacios en blanco a izquierda para completar las 15 posiciones). Ejemplo: "         345.21"
+            # Example "000000027229.33"
+            content += '%15.2f' % payment.withholdable_base_amount
+
+            # Campo 7: Alícuota char(5). Alícuota para la retención y/o percepción. Formato: 99.99 (dos enteros,
+            # punto decimal y dos decimales. Ejemplo: " 3.00"
+            # Example "03.00"
+            content += '%5.2f' % alicuot_line.alicuota_retencion
+
+            # Campo 8: Importe Ret./Perc. char(15). Importe retenido y/o percibido. Formato: 999999999999.99 (doce enteros,
+            # punto decimal y dos decimales, dejando espacios en blanco a izquierda para completar las 15 posiciones).
+            # Ejemplo: "          34.50" "000000000816.88"
+            content += '%15.2f' % line.balance
+
+            content += '\r\n'
+            ret += content
+
+        # File name
+        move_line = move_lines and move_lines[0] or self.env['account.move.line']
+        tipo_agente = 'rr'  # This value is fixed just because we are doing the retention txt, when adding the
+        # perception we need to change it
+        cuit = move_line.company_id.cuit
+        periodo = fields.Date.from_string(move_line.date).strftime('%Y') or ""  # 'pppp' AÑO '2020'
+        cuota = fields.Date.from_string(move_line.date).strftime('%m') or ""  # 'cc'
+
+        return [{
+            'txt_filename': '%s%s%s%s.txt' % (tipo_agente, cuit, periodo, cuota),
+            'txt_content': ret,
+        }]
+
+    def _get_perception_original_invoice_number(self, line):
+        self.ensure_one()
+        res = ''
+        related_invoice = line.move_id._found_related_invoice() or line.move_id
+        letter = related_invoice.l10n_latam_document_type_id.l10n_ar_letter
+        internal_type = related_invoice.l10n_latam_document_type_id.internal_type
+
+        # 2 Tipo de comprobante
+        if internal_type == 'invoice':
+            document_type = letter == 'E' and 5 or 1
+        elif internal_type == 'credit_note':
+            document_type = letter == 'E' and 106 or 102
+        elif internal_type == 'debit_note':
+            document_type = letter == 'E' and 6 or 2
+        elif related_invoice.type == 'out_invoice':
+            document_type = 20
+        elif related_invoice.type == 'out_refund':
+            document_type = 120
+        else:
+            raise ValidationError(_('Tipo de comprobante no reconocido'))
+        res += str(document_type)[:1]
+
+        # 3 Letra del comprobante
+        res += letter
+
+        # 4 Número del comprobante
+        res += '%012d' % int(re.sub('[^0-9]', '', related_invoice.l10n_latam_document_number or ''))
+        return res
 
     def iibb_aplicado_api_files_values(self, move_lines):
         """ Implementado segun especificación en carpeta doc de este repo
@@ -111,7 +221,7 @@ class AccountJournal(models.Model):
                     '"%s" (id: %s)') % (partner.name, partner.id))
 
             # 1 - tipo de operacion
-            if tax.tax_group_id.type == 'perception' and \
+            if tax.type_tax_use in ['sale', 'purchase'] and \
                     tax.amount_type == 'partner_tax':
                 content = '2'
                 alicuot = alicuot_line.alicuota_percepcion
@@ -122,7 +232,7 @@ class AccountJournal(models.Model):
                     or '000'
                 articulo_inciso_retiene = \
                     alicuot_line.api_codigo_articulo_percepcion
-            elif tax.tax_group_id.type == 'withholding' and \
+            elif tax.type_tax_use in ['customer', 'supplier'] and \
                     tax.withholding_type == 'partner_tax':
                 content = '1'
                 alicuot = alicuot_line.alicuota_retencion
@@ -169,10 +279,9 @@ class AccountJournal(models.Model):
             # 6 - numero comprobante Texto(16)
             if internal_type in ('invoice', 'credit_note', 'debit_note'):
                 # TODO el aplicativo deberia empezar a aceptar 5 digitos
-                content += "{:0>4d}".format(
-                    line.invoice_id.point_of_sale_number)
-                content += "{:0>8d}".format(
-                    line.invoice_id.invoice_number)
+                pos, number = get_pos_and_number(move.l10n_latam_document_number)
+                content += '{:>04s}'.format(pos)
+                content += '{:>08s}'.format(number)
                 content += '    '
             else:
                 content += '%016s' % (move.l10n_latam_document_number or '')
@@ -193,7 +302,7 @@ class AccountJournal(models.Model):
             # 11 - Condición frente a Ingresos Brutos
             # 1 es inscripto, 2 no inscripto con oblig. a insc y 3 no insc sin
             # oblig a insc. TODO implementar 2
-            gross_income_type = partner.gross_income_type
+            gross_income_type = partner.l10n_ar_gross_income_type
             if not gross_income_type:
                 raise ValidationError(_(
                     'Debe setear el tipo de inscripción de IIBB del partner '
@@ -249,20 +358,19 @@ class AccountJournal(models.Model):
             content += format_amount(0.0, 9, 2)
 
             # 17 - Importe IVA (solo si factura)
-            vat_amount = (
-                line.invoice_id and line.invoice_id.cc_vat_amount or 0.0)
+            if line.move_id:
+                amounts = line.move_id._l10n_ar_get_amounts(company_currency=True)
+                vat_amount = amounts['vat_amount']
+                base_amount = amounts['vat_untaxed_base_amount']
+            else:
+                vat_amount = 0.0
+                base_amount = line.payment_id and line.payment_id.withholdable_base_amount or 0.0
             content += format_amount(vat_amount, 9, 2)
 
             # 18 - Base Imponible para el cálculo
             # tal vez la base deberiamos calcularlo asi, en pagos no porque
             # los asientos estan separados
             # content += format_amount(-get_line_tax_base(line), 12, 2, ',')
-            if line.invoice_id:
-                base_amount = line.invoice_id.cc_amount_untaxed
-            elif line.payment_id:
-                base_amount = line.payment_id.withholdable_base_amount
-            else:
-                base_amount = 0.0
             content += format_amount(base_amount, 11, 2)
 
             # 19 - Alícuota / alicuota
@@ -304,9 +412,9 @@ class AccountJournal(models.Model):
             # new line
             content += '\r\n'
 
-            if tax.tax_group_id.type == 'perception':
+            if tax.type_tax_use in ['sale', 'purchase']:
                 perc += content
-            elif tax.tax_group_id.type == 'withholding':
+            elif tax.type_tax_use in ['customer', 'supplier']:
                 ret += content
 
         # return [
@@ -362,11 +470,11 @@ class AccountJournal(models.Model):
 
 
             # 1 - Tipo de Operación
-            if tax.tax_group_id.type == 'perception':
+            if tax.type_tax_use in ['sale', 'purchase']:
                     # tax.amount_type == 'partner_tax':
                 content = '2'
                 alicuot = alicuot_line.alicuota_percepcion
-            elif tax.tax_group_id.type == 'withholding':
+            elif tax.type_tax_use in ['customer', 'supplier']:
                     # tax.withholding_type == 'partner_tax':
                 content = '1'
                 alicuot = alicuot_line.alicuota_retencion
@@ -384,13 +492,12 @@ class AccountJournal(models.Model):
                 # 4 - Monto nota de crédito
                 # TODO implementar devoluciones de pagos
                 # content += format_amount(
-                #     line.invoice_id.cc_amount_total, 16, 2, ',')
+                #     line.move_id.cc_amount_total, 16, 2, ',')
                 # la especificacion no lo dice claro pero un errror al importar
                 # si, lo que se espera es el importe base, ya que dice que
                 # este, multiplicado por la alícuota, debe ser igual al importe
                 # a retener/percibir
-                taxable_amount = sum(line.invoice_id.tax_line_ids.filtered(
-                    lambda x: x.tax_id == line.tax_line_id).mapped('base'))
+                taxable_amount = line.tax_base_amount
                 content += format_amount(taxable_amount, 16, 2, ',')
 
                 # 5 - Nro. certificado propio
@@ -399,16 +506,16 @@ class AccountJournal(models.Model):
 
                 # segun interpretamos de los daots que nos pasaron 6, 7, 8 y 11
                 # son del comprobante original
-                or_inv = line.invoice_id.get_related_invoices_data()
+                or_inv = line.move_id._found_related_invoice()
                 if not or_inv:
                     raise ValidationError(_(
                         'No pudimos encontrar el comprobante original para %s '
                         '(id %s). Verifique que en la nota de crédito "%s", el'
                         ' campo origen es el número de la factura original'
                     ) % (
-                        line.invoice_id.display_name,
-                        line.invoice_id.id,
-                        line.invoice_id.display_name))
+                        line.move_id.display_name,
+                        line.move_id.id,
+                        line.move_id.display_name))
 
                 # 6 - Tipo de comprobante origen de la retención
                 # por ahora solo tenemos facturas implementadas
@@ -433,7 +540,7 @@ class AccountJournal(models.Model):
 
                 # 11 - Fecha de retención/percepción
                 content += fields.Date.from_string(
-                    or_inv.date_invoice).strftime('%d/%m/%Y')
+                    or_inv.invoice_date).strftime('%d/%m/%Y')
 
                 # 12 - Ret/percep a deducir
                 content += format_amount(line.balance, 16, 2, ',')
@@ -488,31 +595,31 @@ class AccountJournal(models.Model):
                 # lo sacamos por diferencia
                 other_taxes_amount = company_currency.round(
                     total_amount - taxable_amount - vat_amount)
-            elif line.invoice_id:
+            elif line.move_id:
+                amounts = line.move_id._l10n_ar_get_amounts(company_currency=True)
                 # segun especificacion el iva solo se reporta para estos
                 if line.l10n_latam_document_type_id.l10n_ar_letter in ['A', 'M']:
-                    vat_amount = line.invoice_id.cc_vat_amount
+                    vat_amount = amounts['vat_amount']
                 else:
                     vat_amount = 0.0
 
-                total_amount = line.invoice_id.cc_amount_total
+                total_amount = (1 if line.move_id.is_inbound() else -1) * line.move_id.amount_total_signed
 
                 # por si se olvidaron de poner agip en una linea de factura
                 # la base la sacamos desde las lineas de impuesto
-                # taxable_amount = line.invoice_id.cc_amount_untaxed
-                taxable_amount = sum(line.invoice_id.tax_line_ids.filtered(
-                    lambda x: x.tax_id == line.tax_line_id).mapped('base'))
+                # taxable_amount = line.move_id.cc_amount_untaxed
+                taxable_amount = line.tax_base_amount
                 # convert to company currency if in another currency
-                if company_currency != line.invoice_id.currency_id:
-                    taxable_amount = currency.round(
-                        taxable_amount * line.invoice_id.currency_rate)
+                if company_currency != line.move_id.currency_id:
+                    taxable_amount = company_currency.round(
+                        taxable_amount * line.move_id.currency_rate)
 
                 # tambien lo sacamos por diferencia para no tener error (por el
                 # calculo trucado de taxable_amount por ejemplo) y
                 # ademas porque el iva solo se reporta si es factura A, M
                 other_taxes_amount = company_currency.round(
                     total_amount - taxable_amount - vat_amount)
-                # other_taxes_amount = line.invoice_id.cc_other_taxes_amount
+                # other_taxes_amount = line.move_id.cc_other_taxes_amount
             else:
                 raise ValidationError(_('El impuesto no está asociado'))
 
@@ -524,13 +631,12 @@ class AccountJournal(models.Model):
 
             # 10 - Tipo de documento del Retenido
             # vat
-            if partner.l10n_latam_identification_type_id.code not in ['CUIT', 'CUIL', 'CDI']:
+            if partner.l10n_latam_identification_type_id.name not in ['CUIT', 'CUIL', 'CDI']:
                 raise ValidationError(_(
                     'EL el partner "%s" (id %s), el tipo de identificación '
-                    'debe ser una de siguientes: CUIT, CUIL, CDI.' % (
-                        partner.id, partner.name)))
+                    'debe ser una de siguientes: CUIT, CUIL, CDI.' % (partner.id, partner.name)))
             doc_type_mapping = {'CUIT': '3', 'CUIL': '2', 'CDI': '1'}
-            content += doc_type_mapping[partner.l10n_latam_identification_type_id.code]
+            content += doc_type_mapping[partner.l10n_latam_identification_type_id.name]
 
             # 11 - Nro de documento del Retenido
             content += partner.vat
@@ -538,19 +644,18 @@ class AccountJournal(models.Model):
             # 12 - Situación IB del Retenido
             # 1: Local 2: Convenio Multilateral
             # 4: No inscripto 5: Reg.Simplificado
-            if not partner.gross_income_type:
+            if not partner.l10n_ar_gross_income_type:
                 raise ValidationError(_(
                     'Debe setear el tipo de inscripción de IIBB del partner '
-                    '"%s" (id: %s)') % (
-                    partner.name, partner.id))
+                    '"%s" (id: %s)') % (partner.name, partner.id))
 
             # ahora se reportaria para cualquier inscripto el numero de cuit
             gross_income_mapping = {
-                'local': '5', 'multilateral': '2', 'no_liquida': '4'}
-            content += gross_income_mapping[partner.gross_income_type]
+                'local': '5', 'multilateral': '2', 'exempt': '4'}
+            content += gross_income_mapping[partner.l10n_ar_gross_income_type]
 
             # 13 - Nro Inscripción IB del Retenido
-            if partner.gross_income_type == 'no_liquida':
+            if partner.l10n_ar_gross_income_type == 'exempt':
                 content += '00000000000'
             else:
                 content += partner.ensure_vat()
@@ -648,11 +753,12 @@ class AccountJournal(models.Model):
                     internal_type == 'credit_note' and 'C' or
                     internal_type == 'debit_note' and 'D' or 'R')
                 content += line.l10n_latam_document_type_id.l10n_ar_letter
-
             document_parts = move._l10n_ar_get_document_number_parts(
                 move.l10n_latam_document_number, move.l10n_latam_document_type_id.code)
-            pto_venta = document_parts['point_of_sale']
-            nro_documento = document_parts['invoice_number']
+            # si el punto de venta es de 5 digitos no encontramos doc
+            # que diga como proceder, tomamos los ultimos 4 digitos
+            pto_venta = "{:0>4d}".format(document_parts['point_of_sale'])[-4:]
+            nro_documento = "{:0>8d}".format(document_parts['invoice_number'])[-8:]
             content += str(pto_venta)
             content += str(nro_documento)
 
@@ -717,7 +823,7 @@ class AccountJournal(models.Model):
         perc = ''
 
         for line in move_lines.filtered(
-                lambda x: not x.payment_id and not x.invoice_id):
+                lambda x: not x.payment_id and not x.move_id):
             raise ValidationError(_(
                 'Hay lineas a liquidar que no estan enlazadas a pagos ni '
                 'facturas lo cual es requerido para generar el TXT'))
@@ -768,7 +874,8 @@ class AccountJournal(models.Model):
                 alicuot_line.alicuota_retencion, 6, 2, '.'))
 
             # 9 Monto retenido
-            content.append(format_amount(-line.balance, 12, 2, '.'))
+            # TODO this need to be changed when we properly compute the retentions amounts and use line.balance again
+            content.append(format_amount(round_half_up(payment.withholdable_base_amount * (alicuot_line.alicuota_retencion / 100.0), 2), 12, 2, '.'))
 
             # 10 Tipo de Régimen de Percepción
             # (código correspondiente según tabla definida por la jurisdicción)
@@ -799,14 +906,15 @@ class AccountJournal(models.Model):
                 content.append('%014s' % int(re.sub('[^0-9]', '', payment.withholding_number or '0')[:14]))
 
                 # 15 Número de Constancia original (sólo para las Anulaciones –ver códigos por jur-)  - Numeric(14)
-                content.append('%014d' % int(re.sub('[^0-9]', '', line.move_id.document_number or ''))
+                original_invoice = line.move_id._found_related_invoice() or line.move_id
+                content.append('%014d' % int(re.sub('[^0-9]', '', original_invoice.document_number or ''))
                                if internal_type == 'credit_note' else '%014d' % 0)
 
             ret += ','.join(content) + '\r\n'
             line_nbr += 1
 
         line_nbr = 1
-        for line in move_lines.filtered('invoice_id'):
+        for line in move_lines.filtered('move_id'):
             alicuot_line = line.tax_line_id.get_partner_alicuot(
                 line.partner_id, line.date)
             if not alicuot_line:
@@ -824,15 +932,15 @@ class AccountJournal(models.Model):
 
             # 2 Tipo de comprobante
             internal_type = line.l10n_latam_document_type_id.internal_type
-            if  internal_type == 'invoice':
+            if internal_type == 'invoice':
                 tipo_comprobante = letter == 'E' and 5 or 1
-            elif  internal_type == 'credit_note':
+            elif internal_type == 'credit_note':
                 tipo_comprobante = letter == 'E' and 106 or 102
-            elif  internal_type == 'debit_note':
+            elif internal_type == 'debit_note':
                 tipo_comprobante = letter == 'E' and 6 or 2
-            elif invoice.type == 'out_invoice':
+            elif line.move_id.type == 'out_invoice':
                 tipo_comprobante = 20
-            elif invoice.type == 'out_refund':
+            elif line.move_id.type == 'out_refund':
                 tipo_comprobante = 120
             else:
                 raise ValidationError(_('Tipo de comprobante no reconocido'))
@@ -860,7 +968,8 @@ class AccountJournal(models.Model):
                 alicuot_line.alicuota_percepcion, 6, 2, '.'))
 
             # 9 Monto percibido
-            content.append(format_amount(-line.balance, 12, 2, '.'))
+            # TODO this need to be changed when we properly compute the perception amounts and use line.balance again
+            content.append(format_amount(round_half_up(-get_line_tax_base(line) * (alicuot_line.alicuota_percepcion / 100.0), 2), 12, 2, '.'))
 
             # 10 Tipo de Régimen de Percepción
             # (código correspondiente según tabla definida por la jurisdicción)
@@ -885,7 +994,7 @@ class AccountJournal(models.Model):
                 content.append('2' if internal_type == 'credit_note' else '1')
 
                 # 13 Número de Constancia original (sólo para 2-Anulaciones) Alfanumérico (14) - ejemplo 1A002311312221
-                content.append('%014d' % int(re.sub('[^0-9]', '', line.move_id.document_number or ''))
+                content.append(self._get_perception_original_invoice_number(line)
                                if internal_type == 'credit_note' else '%014d' % 0)
 
             perc += ','.join(content) + '\r\n'
@@ -944,8 +1053,8 @@ class AccountJournal(models.Model):
                 number = document_parts['invoice_number']
                 # si el punto de venta es de 5 digitos no encontramos doc
                 # que diga como proceder, tomamos los ultimos 4 digitos
-                pto_venta = str(pos).zfill(4)[-4:]
-                nro_documento = str(number).zfill(8)[-8:]
+                pto_venta = "{:0>4d}".format(document_parts['point_of_sale'])[-4:]
+                nro_documento = "{:0>8d}".format(document_parts['invoice_number'])[-8:]
                 content += pto_venta
                 content += nro_documento
 

@@ -156,6 +156,11 @@ class AccountJournal(models.Model):
         Devuelve un browse del move creado
         """
         self.ensure_one()
+        draft_lines = move_lines.filtered(lambda x: x.move_id.state == 'draft')
+        if draft_lines:
+            raise ValidationError(_(
+                'A seleccionado apuntes contables de asientos en borrador. '
+                'Solo puede liquidar apuntes de asientos publicados. Apuntes: %s') % draft_lines.ids)
         if not self.tax_settlement:
             raise ValidationError(_(
                 'Settlement only allowed on journals with Tax Settlement '
@@ -191,7 +196,7 @@ class AccountJournal(models.Model):
     def _get_tax_settlement_entry_lines_vals(self, domain=None):
         # TODO agregar la parte dinamica
         grouped_move_lines = self.env['account.move.line'].read_group(
-            domain, ['account_id', 'balance'], ['account_id'])
+            domain, ['account_id', 'balance', 'amount_currency'], ['account_id'])
 
         new_move_lines = []
         balance = 0.0
@@ -206,12 +211,21 @@ class AccountJournal(models.Model):
             # amount_currency += group_amount_currency
             # balane es debito menos credito, si es positivo entonces hay mas
             # debito y tenemos que mandar a credito
-            new_move_lines.append({
+            new_vals_line = {
                 'name': self.name,
                 'debit': group_balance < 0.0 and -group_balance,
                 'credit': group_balance >= 0.0 and group_balance,
                 'account_id': group['account_id'][0],
-            })
+            }
+            # if we find an account with secondary currency, we consider that
+            #  the new aml must have currency and amount currency
+            currency_id = group['account_id'][0] and self.env['account.account'].browse(
+                group['account_id'][0]).currency_id.id
+            if currency_id:
+                new_vals_line.update({
+                    'currency_id': currency_id,
+                    'amount_currency': -group['amount_currency']})
+            new_move_lines.append(new_vals_line)
 
         # agregamos la info para que se creen lineas para cada cuenta
         # etiquetada (estas lineas se llevan en cero)
@@ -366,6 +380,11 @@ class AccountJournal(models.Model):
         [{'txt_filename': 'Nombre', 'txt_content': 'Contenido'}
         """
         self.ensure_one()
+        draft_lines = move_lines.filtered(lambda x: x.move_id.state == 'draft')
+        if draft_lines:
+            raise ValidationError(_(
+                'A seleccionado apuntes contables de asientos en borrador. '
+                'Solo puede generar el txt de apuntes de asientos publicados. Apuntes: %s') % draft_lines.ids)
         _logger.info(
             "Getting tax settlement tax values for '%s'" % (self.name))
         if self.settlement_tax and hasattr(
