@@ -914,7 +914,7 @@ class AccountJournal(models.Model):
             line_nbr += 1
 
         line_nbr = 1
-        for line in move_lines.filtered('move_id'):
+        for line in move_lines.filtered(lambda move: move.is_invoice()):
             alicuot_line = line.tax_line_id.get_partner_alicuot(
                 line.partner_id, line.date)
             if not alicuot_line:
@@ -1024,8 +1024,11 @@ class AccountJournal(models.Model):
 
         ret = ''
         perc = ''
-
+        desp_imp = ''
         for line in move_lines:
+            if line.l10n_latam_document_type_id.code in ['66', '67']:
+                desp_imp += ' - ' + line.move_id.display_name + '\n'
+                continue
             payment = line.payment_id
             # pay_group = payment.payment_group_id
             move = line.move_id
@@ -1096,6 +1099,9 @@ class AccountJournal(models.Model):
             else:
                 perc += content
 
+        if desp_imp:
+            desp_imp = ('En los registros seleccionados encontramos algunos despachos de importación, los mismos deben'
+                        'cargarse a mano. Los registros despachos corrspondientes son:\n') + desp_imp
         return [
             {
                 'txt_filename': 'Percepciones sufridas SIFERE.txt',
@@ -1103,6 +1109,9 @@ class AccountJournal(models.Model):
             }, {
                 'txt_filename': 'Retenciones sufridas SIFERE.txt',
                 'txt_content': ret,
+            }, {
+                'txt_filename': 'Despachos de importación (no importar).txt',
+                'txt_content': desp_imp,
             }]
 
     def sicore_aplicado_files_values(self, move_lines):
@@ -1111,7 +1120,7 @@ class AccountJournal(models.Model):
         # build txt file
         content = ''
 
-        for line in move_lines:
+        for line in move_lines.sorted(key=lambda r: r.date):
             partner = line.partner_id
             if not partner.l10n_latam_identification_type_id.l10n_ar_afip_code:
                 raise ValidationError(_(
@@ -1145,12 +1154,12 @@ class AccountJournal(models.Model):
             # Importe Comprobante            [16]
             content += '%016.2f' % payment.payment_group_id.payments_amount
 
-            # Codigo de Impuesto             [ 3]
+            # Codigo de Impuesto             [ 4]
             # Codigo de Regimen              [ 3]
             if line.tax_line_id.tax_group_id in (
                     self.env.ref('l10n_ar_ux.tax_group_retencion_ganancias'),
                     self.env.ref('l10n_ar.tax_group_percepcion_ganancias')):
-                content += '217'
+                content += '0217'
                 regimen = pay_group.regimen_ganancias_id
                 # necesitamos lo de filter porque hay dos regimenes que le
                 # agregamos caracteres
@@ -1159,7 +1168,7 @@ class AccountJournal(models.Model):
             elif line.tax_line_id.tax_group_id in (
                     self.env.ref('l10n_ar_ux.tax_group_retencion_iva'),
                     self.env.ref('l10n_ar.tax_group_percepcion_iva')):
-                content += '767'
+                content += '0767'
                 # por ahora el unico implementado es para factura M
                 content += '499'
             else:
