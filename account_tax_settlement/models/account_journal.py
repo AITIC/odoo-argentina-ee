@@ -88,8 +88,8 @@ class AccountJournal(models.Model):
                     raise ValidationError(_(
                         'Si usa "Impuesto de liquidación" debe setear un '
                         '"Partner de liquidación"'))
-                if not rec.default_debit_account_id or \
-                        not rec.default_credit_account_id:
+                if not rec.payment_debit_account_id or \
+                        not rec.payment_credit_account_id:
                     raise ValidationError(_(
                         'Si usa "Impuesto de liquidación" debe setear cuentas '
                         'de débito y crédito'))
@@ -270,11 +270,11 @@ class AccountJournal(models.Model):
             if balance >= 0.0:
                 debit = 0.0
                 credit = balance
-                account = self.default_debit_account_id
+                account = self.payment_debit_account_id
             else:
                 debit = -balance
                 credit = 0.0
-                account = self.default_credit_account_id
+                account = self.payment_credit_account_id
 
             if not account:
                 raise ValidationError(_(

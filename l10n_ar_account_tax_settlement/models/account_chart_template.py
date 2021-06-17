@@ -100,8 +100,8 @@ class AccountChartTemplate(models.Model):
                 'settlement_tax': tax,
                 # 'settlement_financial_report_id': report and report.id,
                 'settlement_partner_id': partner and partner.id,
-                'default_credit_account_id': credit_id,
-                'default_debit_account_id': debit_id,
+                'payment_credit_account_id': credit_id,
+                'payment_debit_account_id': debit_id,
                 'company_id': company.id,
                 # al final hicimos otro dashboard
                 'show_on_dashboard': False,

@@ -14,10 +14,10 @@
                 <field name="settlement_financial_report_id" attrs="{'invisible': [('tax_settlement', '=', False)]}"/>
                 <field name="settlement_account_tag_ids" attrs="{'invisible': [('tax_settlement', '=', False)]}" widget="many2many_tags"/>
             </field>
-            <field name="default_debit_account_id" position="attributes">
+            <field name="payment_debit_account_id" position="attributes">
                 <attribute name="attrs">{'required': [('tax_settlement', '!=', False)]}</attribute>
             </field>
-            <field name="default_credit_account_id" position="attributes">
+            <field name="payment_credit_account_id" position="attributes">
                 <attribute name="attrs">{'required': [('tax_settlement', '!=', False)]}</attribute>
             </field>
         </field>
