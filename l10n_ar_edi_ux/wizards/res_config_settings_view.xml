@@ -20,7 +20,7 @@
                 <div class="col-xs-12 col-md-6 o_setting_box" groups="base.group_no_one" title="Al hacer click en los botones de mas abajo se van a sincronizar desde afip las Actividades, Impuestos y Conceptos. Estos datos son solo informativos y se utilizan para clasificar al partner al consultar datos del partner en el padron AFIP." >
                     <div class="o_setting_left_pane"/>
                     <div class="o_setting_right_pane">
-                        <label for="localization" string="Refrescar datos del Padron AFIP" />
+                        <span class="o_form_label">Refrescar datos del Padron AFIP</span>
                         <div class="content-group">
                             <div>
                                 <button name="refresh_activities_from_padron" string="-> Actividades" type="object" class="oe_link"/>
@@ -30,7 +30,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xs-12 col-md-6 o_setting_box" attrs="{'invisible':[('l10n_ar_country_code', '!=', 'AR')]}">
+                <div class="col-xs-12 col-md-6 o_setting_box" attrs="{'invisible':[('country_code', '!=', 'AR')]}">
                     <div class="o_setting_left_pane"/>
                     <div class="o_setting_right_pane">
                         <label for="l10n_ar_afip_fce_transmission" string="Default MiPyME FCE Transmission Option"/>
