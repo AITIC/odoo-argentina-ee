@@ -1,2 +1,2 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_res_partner_update_from_padron_wizard,res.partner.update.from.padron.wizard,model_access_res_partner_update_from_padron_wizard,account.group_account_invoice,1,1,1,1
+access_res_partner_update_from_padron_wizard,access.res.partner.update.from.padron.wizard,model_res_partner_update_from_padron_wizard,account.group_account_user,1,1,1,1
