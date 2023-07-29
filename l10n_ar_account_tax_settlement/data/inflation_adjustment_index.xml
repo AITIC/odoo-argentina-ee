@@ -490,4 +490,135 @@
         <field name="date" eval="time.strftime('2021-02-01')"/>
         <field name="value">415.8595</field>
     </record>
+
+    <record id="index_03_2021" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2021-03-01')"/>
+        <field name="value">435.8657</field>
+    </record>
+
+    <record id="index_04_2021" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2021-04-01')"/>
+        <field name="value">453.6503</field>
+    </record>
+
+    <record id="index_05_2021" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2021-05-01')"/>
+        <field name="value">468.725</field>
+    </record>
+
+    <record id="index_06_2021" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2021-06-01')"/>
+        <field name="value">483.6049</field>
+    </record>
+
+    <record id="index_07_2021" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2021-07-01')"/>
+        <field name="value">498.0987</field>
+    </record>
+
+    <record id="index_08_2021" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2021-08-01')"/>
+        <field name="value">510.3942</field>
+    </record>
+
+    <record id="index_09_2021" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2021-09-01')"/>
+        <field name="value">528.4968</field>
+    </record>
+
+    <record id="index_10_2021" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2021-10-01')"/>
+        <field name="value">547.0802</field>
+    </record>
+
+    <record id="index_11_2021" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2021-11-01')"/>
+        <field name="value">560.9184</field>
+    </record>
+
+    <record id="index_12_2021" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2021-12-01')"/>
+        <field name="value">582.4575</field>
+    </record>
+
+    <record id="index_01_2022" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2022-01-01')"/>
+        <field name="value">605.0317</field>
+    </record>
+
+    <record id="index_02_2022" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2022-02-01')"/>
+        <field name="value">633.4341</field>
+    </record>
+
+    <record id="index_03_2022" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2022-03-01')"/>
+        <field name="value">676.0566</field>
+    </record>
+
+    <record id="index_04_2022" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2022-04-01')"/>
+        <field name="value">716.9399</field>
+    </record>
+
+    <record id="index_05_2022" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2022-05-01')"/>
+        <field name="value">753.147</field>
+    </record>
+
+    <record id="index_06_2022" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2022-06-01')"/>
+        <field name="value">793.0278</field>
+    </record>
+
+    <record id="index_07_2022" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2022-07-01')"/>
+        <field name="value">851.761</field>
+    </record>
+
+    <record id="index_08_2022" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2022-08-01')"/>
+        <field name="value">911.1316</field>
+    </record>
+
+    <record id="index_09_2022" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2022-09-01')"/>
+        <field name="value">967.3076</field>
+    </record>
+
+    <record id="index_10_2022" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2022-10-01')"/>
+        <field name="value">1028.706</field>
+    </record>
+
+    <record id="index_11_2022" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2022-11-01')"/>
+        <field name="value">1079.2787</field>
+    </record>
+
+    <record id="index_12_2022" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2022-12-01')"/>
+        <field name="value">1134.5875</field>
+    </record>
+
+    <record id="index_01_2023" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2023-01-01')"/>
+        <field name="value">1202.979</field>
+    </record>
+
+    <record id="index_02_2023" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2023-02-01')"/>
+        <field name="value">1282.7091</field>
+    </record>
+
+    <record id="index_03_2023" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2023-03-01')"/>
+        <field name="value">1381.1601</field>
+    </record>
+
+    <record id="index_04_2023" model="inflation.adjustment.index">
+        <field name="date" eval="time.strftime('2023-04-01')"/>
+        <field name="value">1497.2147</field>
+    </record>
+
 </odoo>

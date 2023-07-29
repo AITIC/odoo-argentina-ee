@@ -40,11 +40,11 @@ class ResPartner(models.Model):
         vat = self.ensure_vat()
 
         # if there is certificate for current company use that one, if not use the company with first certificate found
-        company = self.env.company if self.env.company.sudo().l10n_ar_afip_ws_crt else self.env['res.company'].search(
+        company = self.env.company if self.env.company.sudo().l10n_ar_afip_ws_crt else self.env['res.company'].sudo().search(
             [('l10n_ar_afip_ws_crt', '!=', False)], limit=1)
         if not company:
             raise UserError(_('Please configure an AFIP Certificate in order to continue'))
-        client, auth = company._l10n_ar_get_connection('ws_sr_padron_a5')._get_client()
+        client, auth = company._l10n_ar_get_connection('ws_sr_constancia_inscripcion')._get_client()
 
         error_msg = _(
             'No pudimos actualizar desde padron afip al partner %s (%s).\nRecomendamos verificar manualmente en la'
@@ -87,7 +87,7 @@ class ResPartner(models.Model):
         if isinstance(data_mt_actividades, (dict,)):
             data_mt_actividades = [data_mt_actividades]
 
-        actividades = [act["idActividad"]
+        actividades = [str(act["idActividad"])
                        for act in data_rg.get("actividad", []) + data_mt_actividades]
         cat_mt = data_mt.get("categoriaMonotributo", {})
         monotributo = "S" if cat_mt else "N"
