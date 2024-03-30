@@ -1492,7 +1492,8 @@ class AccountJournal(models.Model):
                 content += codigo_regimen[:3]
 
                 # cuit agente (long 11)
-                content += payment.partner_id.ensure_vat()
+                line.move_id.partner_id.ensure_vat()
+                content += line.move_id.partner_id.l10n_ar_formatted_vat
 
                 # fecha retención (long 10)
                 content += fields.Date.from_string(payment.date).strftime('%d/%m/%Y')
@@ -1517,7 +1518,9 @@ class AccountJournal(models.Model):
                 content += codigo_regimen[:3]
 
                 # cuit agente (long 11)
-                content += line.move_id.partner_id.ensure_vat()
+
+                line.move_id.partner_id.ensure_vat()
+                content += line.move_id.partner_id.l10n_ar_formatted_vat
 
                 # fecha retención (long 10)
                 content += fields.Date.from_string(line.move_id.invoice_date).strftime('%d/%m/%Y')
