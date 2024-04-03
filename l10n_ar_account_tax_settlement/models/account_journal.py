@@ -1499,13 +1499,13 @@ class AccountJournal(models.Model):
                 content += fields.Date.from_string(payment.date).strftime('%d/%m/%Y')
 
                 # número comprobante (long 16)
-                content += re.sub('[^0-9\.]', '', payment.withholding_number).ljust(16, '0')
+                content += re.sub('[^0-9\.]', '', payment.withholding_number).ljust(25, '0')
 
                 # Aclaración importante: estamos agregando ceros entre el número de comprobante y el importe de retención
                 # esto contradice la especificación que dice que debe haber espacios pero en la tarea 31418 nos indicaron
                 # que debe haber espacios. Ver nota en dicha tarea 14/07/2023 10:31:00 y 13/07/2023 14:39:47
                 # importe retención (long 16)
-                content += '%016.2f' % payment.amount
+                content += '% 16.2f' % payment.amount
                 content += '\r\n'
             elif line.move_id.is_invoice():
                 # regimen (long 3)
@@ -1529,7 +1529,7 @@ class AccountJournal(models.Model):
                 content += line.move_id.l10n_latam_document_number.ljust(16)
 
                 # importe retención (long 16)
-                content += '% 16.2f' % line.balance
+                content += '%16.2f' % line.balance
                 content += '\r\n'
 
         return [{
