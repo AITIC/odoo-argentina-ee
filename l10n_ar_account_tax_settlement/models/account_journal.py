@@ -1529,7 +1529,7 @@ class AccountJournal(models.Model):
                 content += line.move_id.l10n_latam_document_number.ljust(16)
 
                 # importe retención (long 16)
-                content += '%16.2f' % line.balance
+                content += '% 16.2f' % line.balance
                 content += '\r\n'
 
         return [{
