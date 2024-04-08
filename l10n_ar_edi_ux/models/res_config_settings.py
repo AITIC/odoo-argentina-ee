@@ -1,6 +1,4 @@
-from odoo import models, fields, api, _
-from odoo.exceptions import UserError
-import requests
+from odoo import models, fields
 
 
 class ResConfigSettings(models.TransientModel):
