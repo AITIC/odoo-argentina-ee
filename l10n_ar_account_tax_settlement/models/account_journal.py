@@ -868,8 +868,9 @@ class AccountJournal(models.Model):
                 content.append('2')
 
             # 4 Número del comprobante
-            content.append('%012d' % int(
-                re.sub('[^0-9]', '', line.payment_id.withholding_number or '')))
+            # ~ content.append('%012d' % int(
+                # ~ re.sub('[^0-9]', '', line.payment_id.withholding_number or '')))
+            content.append('0')
 
             # 5 Cuit del contribuyene
             content.append(line.partner_id.ensure_vat())
@@ -915,8 +916,9 @@ class AccountJournal(models.Model):
                 content.append(fields.Date.from_string(line.date).strftime('%d/%m/%Y'))
 
                 # 14 Número de Constancia - Numeric(14)
-                content.append('%014s' % int(re.sub('[^0-9]', '', payment.withholding_number or '0')[:14]))
-
+                #content.append('%014s' % int(re.sub('[^0-9]', '', payment.withholding_number or '0')[:14]))
+                content.append(payment.withholding_number.zfill(14) or '0')
+                
                 # 15 Número de Constancia original (sólo para las Anulaciones –ver códigos por jur-)  - Numeric(14)
                 original_invoice = line.move_id._found_related_invoice() or line.move_id
                 content.append('%014d' % int(re.sub('[^0-9]', '', original_invoice.document_number or ''))
