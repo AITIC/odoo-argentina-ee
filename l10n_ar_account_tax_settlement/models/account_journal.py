@@ -506,9 +506,11 @@ class AccountJournal(models.Model):
                         line.move_id.display_name))
 
                 # 6 - Tipo de comprobante origen de la retención
-                # por ahora solo tenemos facturas implementadas
-                content += '01'
 
+                #Identificamos si el comprobante de origen es una Factura de credito MiPyMEs sino lo 
+                # tratamos como una factura normal
+                content += '10' if or_inv.l10n_latam_document_type_id.code in ['201', '206', '211'] else '01'
+                
                 # 7 - Letra del Comprobante
                 if payment:
                     content += ' '
@@ -1489,7 +1491,7 @@ class AccountJournal(models.Model):
                 content += fields.Date.from_string(payment.date).strftime('%d/%m/%Y')
 
                 # número comprobante (long 16)
-                content += re.sub('[^0-9\.]', '', line.withholding_id.name).ljust(16, '0')
+                content += re.sub(r'[^0-9\.]', '', line.withholding_id.name).ljust(16, '0')
 
                 # Aclaración importante: estamos agregando ceros entre el número de comprobante y el importe de retención
                 # esto contradice la especificación que dice que debe haber espacios pero en la tarea 31418 nos indicaron
