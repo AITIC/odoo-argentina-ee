@@ -269,10 +269,10 @@ class AccountJournal(models.Model):
                 content += '{:>08s}'.format(number)
                 content += '    '
             else:
-                content += '%016s' % (move.l10n_latam_document_number or '')
+                content += '%016s' % (line.withholding_id.name or '')
 
             # 7 - fecha comprobante
-            content += fields.Date.from_string(move.date).strftime('%d/%m/%Y')
+            content += fields.Date.from_string(line.date).strftime('%d/%m/%Y')
 
             # 8 - monto comprobante
             content += format_amount(abs(line.move_id.amount_total_signed), 12, 2) if line.move_id.is_invoice() else format_amount(abs(-line.balance), 12, 2)
@@ -448,7 +448,7 @@ class AccountJournal(models.Model):
                     'El partner "%s" (id %s) no tiene número de identificación '
                     'seteada') % (partner.name, partner.id))
 
-            alicuot_line = tax.get_partner_alicuot(partner, line.date)
+            alicuot_line = tax.get_partner_alicuot(partner, line.move_id._found_related_invoice().date or line.date)
             if not alicuot_line:
                 raise ValidationError(_(
                     'No hay alicuota configurada en el partner '
@@ -557,7 +557,7 @@ class AccountJournal(models.Model):
 
             # 4 - Tipo de comprobante origen de la retención
             if internal_type == 'invoice':
-                content += '01'
+                content += '10' if line.move_id.l10n_latam_document_type_id.code in ['201', '206', '211'] else '01'
             elif internal_type == 'debit_note':
                 if es_percepcion:
                     content += '09'
@@ -1150,10 +1150,10 @@ class AccountJournal(models.Model):
                     line.date).strftime('%d/%m/%Y')
                 # Numero Comprobante            [16]
                 content += '%016d' % int(re.sub('[^0-9]', '', move.l10n_latam_document_number))
-                #Importe del comprobante
+                # Importe del comprobante
                 codop = '1'
                 issue_date = payment.date
-                amount_tot = abs(payment.l10n_ar_amount_total)
+                amount_tot = abs(payment.payment_total)
                 # withholdable_base_amount es para ret de gcias, withholding_base_amount es para ret de iva
                 base_amount = line.withholding_id.withholdable_base_amount or line.withholding_id.withholdable_base_amount
 

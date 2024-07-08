@@ -12,9 +12,6 @@
         'l10n_ar_edi',
         'account_accountant',
     ],
-    'external_dependencies': {
-        'python': ['zeep'],
-    },
     'data': [
         'wizards/res_partner_update_from_padron_wizard_view.xml',
         'wizards/account_check_action_wizard_view.xml',
@@ -31,4 +28,5 @@
     'installable': True,
     'auto_install': True,
     'application': False,
+    'post_load': 'monkey_patches',
 }
