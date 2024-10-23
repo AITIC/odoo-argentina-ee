@@ -79,20 +79,7 @@
     </record>
 
     <menuitem name="CAEA" action="l10n_ar_caea_action" id="menu_action_caea" parent="l10n_ar.account_reports_ar_statements_menu"/>
-
-    <template id="report_invoice_document" inherit_id="l10n_ar_edi.report_invoice_document">
-        <xpath expr="//div[@name='pager']" position="replace">
-            <t t-if="o.journal_id.l10n_ar_afip_pos_system and o.journal_id.l10n_ar_afip_pos_system != 'II_IM'">
-                <div>
-                    <t t-esc="o.l10n_ar_afip_auth_mode"/>:  <span t-field="o.l10n_ar_afip_auth_code"/>
-                </div>
-                <div>
-                    Fecha Vto. <t t-esc="o.l10n_ar_afip_auth_mode"/>: <span t-field="o.l10n_ar_afip_auth_code_due"/>
-                </div>
-            </t>
-        </xpath>
-    </template>
-
+    
 
     <template id="l10n_ar_edi.report_invoice_document" inherit_id="l10n_ar.report_invoice_document">
             
