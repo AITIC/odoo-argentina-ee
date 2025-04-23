@@ -25,13 +25,86 @@ class ResPartner(models.Model):
         self.ensure_one()
         return True
 
+    def _clean_response_obj(self, xml_tag, default_replace={}):
+        """
+        Este método procesa el response que nos devuelve afip para reemplazar los valores `None` por un valor predeterminado
+        basado en el tipo de dato especificado. Si el response en sí es `None` o está vacío,
+        lo reemplaza completamente con el valor indicado en el parámetro `type_replace`.
+
+        El mapeo de tipos de datos y sus valores predeterminados se define en la variable interna `replace_values`.
+
+        :param xml_tag: El respopnse o valor que se debe procesar.
+                        Si está vacío o es `None`, se reemplaza completamente por `type_replace`.
+        :param type_replace: Valor que se usará como reemplazo global si el diccionario está vacío o es `None`.
+        :return: Diccionario modificado con los valores `None` reemplazados según el tipo especificado.
+        """
+        res = {}
+        replace_values = {
+            'datosGenerales': {},
+            'caracterizacion': [],
+            'domicilioFiscal': {},
+            'codPostal': '',
+            'descripcionProvincia': '',
+            'direccion': '',
+            'idProvincia': '',
+            'localidad': '',
+            'tipoDomicilio': '',
+            'datoAdicional': '',
+            'tipoDatoAdicional': '',
+            'esSucesion': '',
+            'estadoClave': '',
+            'apellido': '',
+            'dependencia': '',
+            'nombre': '',
+            'razonSocial': '',
+            'tipoClave': '',
+            'tipoPersona': '',
+            'datosMonotributo': {},
+            'datosRegimenGeneral': {},
+            'actividad': [],
+            'impuesto': [],
+            'regimen': [],
+            'errorConstancia': '',
+            'errorMonotributo': '',
+            'errorRegimenGeneral': '',
+            'descripcionActividad': '',
+            'descripcionImpuesto': '',
+            'descripcionRegimen': '',
+            'tipoRegimen': '',
+            'metadata': {},
+            'servidor': '',
+        }
+
+        # Si el diccionario es None o vacío, lo reemplazamos por el valor dado en type_replace
+        if not xml_tag:
+            return default_replace
+
+        # Si el diccionario tiene valores, recorremos y reemplazamos los valores None
+        # Si el valor en si es un diccionario lo limpiamops tambien
+        if isinstance(xml_tag, dict):  # Procesar si es un diccionario
+            cleaned = {}
+            for key, value in xml_tag.items():
+                type_replace = replace_values.get(key, default_replace)
+                if isinstance(value, dict):
+                    cleaned[key] = self._clean_response_obj(value, default_replace=type_replace)
+                elif isinstance(value, list):
+                    cleaned[key] = [
+                        self._clean_response_obj(item, default_replace=type_replace) if isinstance(item, (dict, list)) else (type_replace if item is None else item)
+                        for item in value
+                    ]
+                else:
+                    cleaned[key] = type_replace if value is None else value
+            return cleaned
+
     def get_data_from_padron_afip(self):
         self.ensure_one()
         vat = self.ensure_vat()
 
         # if there is certificate for current company use that one, if not use the company with first certificate found
-        company = self.env.company if self.env.company.sudo().l10n_ar_afip_ws_crt else self.env['res.company'].sudo().search(
-            [('l10n_ar_afip_ws_crt', '!=', False)], limit=1)
+        today = fields.Date.context_today(self.with_context(tz='America/Argentina/Buenos_Aires'))
+        valid_crt_company = self.env['res.company'].sudo().search([('l10n_ar_afip_ws_crt', '!=', False)])\
+            .filtered(lambda x: x._l10n_ar_get_afip_crt_expire_date() > today)
+        company = self.env.company if self.env.company in  valid_crt_company else valid_crt_company[:1]
         if not company:
             raise UserError(_('Please configure an AFIP Certificate in order to continue'))
         client, auth = company._l10n_ar_get_connection('ws_sr_constancia_inscripcion')._get_client()
@@ -58,7 +131,12 @@ class ResPartner(models.Model):
         if errors:
             raise UserError(error_msg % (self.name, vat, errors))
 
-        data = serialize_object(res.datosGenerales, dict)
+        # Serializamos una sola vez
+        res = serialize_object(res, dict)
+        res = self._clean_response_obj(res)
+
+        data = res.get('datosGenerales')
+
         if not data:
             raise UserError(error_msg % (self.name, vat, res))
 
@@ -66,9 +144,10 @@ class ResPartner(models.Model):
         if not denominacion or denominacion == ', ':
             raise UserError(error_msg % (self.name, vat, 'La afip no devolvió nombre'))
 
-        domicilio = data.get("domicilioFiscal", {})
-        data_mt = serialize_object(res.datosMonotributo, dict) or {}
-        data_rg = serialize_object(res.datosRegimenGeneral, dict) or {}
+        domicilio = data.get("domicilioFiscal")
+        data_mt = res.get('datosMonotributo')
+        data_rg = res.get('datosRegimenGeneral')
+
         impuestos = [imp["idImpuesto"]
                      for imp in data_mt.get("impuesto", []) + data_rg.get("impuesto", [])
                      if data.get('estadoClave') == 'ACTIVO']
@@ -83,11 +162,11 @@ class ResPartner(models.Model):
         def check_activity(data_rg, data_mt):
             res = []
             new_activity = {}
-            afip_activities = data_rg.get("actividad", []) + ([data_mt.get("actividadMonotributista")] if data_mt else [])
+            afip_activities = data_rg.get("actividad", []) + ([data_mt.get("actividadMonotributista", [])] if data_mt else [])
             actividades = self.env['afip.activity'].sudo()
             activity_codes = actividades.search([]).mapped('code')
             for act in afip_activities:
-                if str(act.get('idActividad')) not in activity_codes:
+                if act and str(act.get('idActividad')) not in activity_codes:
                     new_activity.update({
                         'code': act.get('idActividad'),
                         'name': act.get('descripcionActividad')
@@ -106,7 +185,7 @@ class ResPartner(models.Model):
             taxes = self.env['afip.tax'].sudo()
             tax_codes = taxes.search([]).mapped('code')
             for imp in afip_taxes:
-                if str(imp.get('idImpuesto')) not in tax_codes:
+                if imp and str(imp.get('idImpuesto')) not in tax_codes:
                     new_tax.update({
                         'code': imp.get('idImpuesto'),
                         'name': imp.get('descripcionImpuesto')
@@ -188,5 +267,13 @@ class ResPartner(models.Model):
             values['l10n_ar_afip_responsibility_type_id'] = self.env.ref('l10n_ar.res_IVAE').id
         else:
             _logger.info("We couldn't infer the AFIP responsability from padron, you must set it manually.")
+
+        # Si somos un consorcio entonces no colocamos responsbilidad afip y dejamos mensajito en el contecto avisando
+        if '681098' in actividades or \
+           any(word in denominacion.lower() for word in ["fideicomiso", "consorcio", "cons.", "cons "]):
+            values.pop('l10n_ar_afip_responsibility_type_id', None)
+            self.message_post(body=_(
+                'Posiblemente este cliente sea un consorcio/fideicomiso. Por favor debe consultar directamente con el'
+                ' cliente sus datos y agregar manualmente la responsabilidad de AFIP en el Odoo'))
 
         return values
