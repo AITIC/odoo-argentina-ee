@@ -152,7 +152,7 @@ class AccountMove(models.Model):
             # * Code 1442: Si el punto de venta no es del tipo CONTINGENCIA para el CAEA en cuestion, no informar el campo CbteFchHsGen
             # 'CbteFchHsGen': self.date.strftime('%Y%m%d%H%M%S'),
 
-            res.update({'FeDetReq': [FeDetReq]})
+            res.update({'FeDetReq': [FeDetReq],'CbteFchHsGen':self.date.strftime('%Y%m%d%H%M%S')})
         return res
 
     def action_reprocess_caea_afip(self):
