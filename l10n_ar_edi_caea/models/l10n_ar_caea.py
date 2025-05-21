@@ -85,6 +85,15 @@ class L10nArCaea(models.Model):
                 self.date_from = fields.Date.add(fornight, days=1)
                 self.date_to = end_of_month
 
+
+    @api.model
+    def search(self, args, offset=0, limit=None, order=None, count=False):
+        filter_company = expression.OR([[ ('company_id', 'in', self.env.companies.ids)]])
+        company_domain = expression.AND([filter_company, args])
+        return super().search(company_domain, offset=offset, limit=limit, order=order, count=count)
+
+
+
     # Action / Button Methods
 
     def action_view_moves(self):
