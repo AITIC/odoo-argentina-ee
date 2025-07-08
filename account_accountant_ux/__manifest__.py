@@ -19,7 +19,7 @@
 ##############################################################################
 {
     'name': 'Accounting Accountant UX',
-    'version': '13.0.1.3.0',
+    'version': "16.0.2.6.0",
     'category': 'Accounting',
     'sequence': 14,
     'summary': '',
@@ -31,14 +31,16 @@
     'depends': [
         'account_reports',
         'account_followup',
-        'account_payment_fix',
+        'account_payment_group',
     ],
     'data': [
-        'views/account_financial_html_report_views.xml',
         'views/res_partner_view.xml',
+        'views/account_followup_views.xml',
+        'views/account_move_line.xml',
         'wizards/account_change_lock_date_views.xml',
         'wizards/res_config_settings_views.xml',
         'data/account_accountant_data.xml',
+        'views/account_journal_dashboard_view.xml',
     ],
     'demo': [
     ],

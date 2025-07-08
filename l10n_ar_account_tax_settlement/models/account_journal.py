@@ -127,7 +127,7 @@ class AccountJournal(models.Model):
 
             # Campo 5: Fecha Ret./Perc. char(8)- Fecha de efectuada la retención / percepción (ddmmaaaa)
             # Example "16052020"
-            content += fields.Date.from_string(payment.payment_date).strftime('%d%m%Y')
+            content += fields.Date.from_string(payment.date).strftime('%d%m%Y')
 
             # Campo 6. Base Imponible char(15). Formato: 999999999999.99 (doce enteros, punto decimal y dos decimales,
             # dejando espacios en blanco a izquierda para completar las 15 posiciones). Ejemplo: "         345.21"
@@ -174,9 +174,9 @@ class AccountJournal(models.Model):
             document_type = letter == 'E' and 106 or 102
         elif internal_type == 'debit_note':
             document_type = letter == 'E' and 6 or 2
-        elif related_invoice.type == 'out_invoice':
+        elif related_invoice.move_type == 'out_invoice':
             document_type = 20
-        elif related_invoice.type == 'out_refund':
+        elif related_invoice.move_type == 'out_refund':
             document_type = 120
         else:
             raise ValidationError(_('Tipo de comprobante no reconocido'))
@@ -259,14 +259,14 @@ class AccountJournal(models.Model):
             internal_type = line.l10n_latam_document_type_id.internal_type
             move = line.move_id
 
-            if internal_type in ('invoice'):
+            if internal_type and internal_type == 'invoice':
                 # factura
                 content += '01' + line.l10n_latam_document_type_id.l10n_ar_letter
 
-            elif internal_type == 'debit_note':
+            elif internal_type and internal_type == 'debit_note':
                 # ND
                 content += '02' + line.l10n_latam_document_type_id.l10n_ar_letter
-            elif internal_type == 'credit_note':
+            elif internal_type and internal_type == 'credit_note':
                 content += '10' + line.l10n_latam_document_type_id.l10n_ar_letter
             else:
                 # orden de pago (sin letra)
@@ -277,7 +277,7 @@ class AccountJournal(models.Model):
                 content += '03 '
 
             # 6 - numero comprobante Texto(16)
-            if internal_type in ('invoice', 'credit_note', 'debit_note'):
+            if internal_type and internal_type in ('invoice', 'credit_note', 'debit_note'):
                 # TODO el aplicativo deberia empezar a aceptar 5 digitos
                 pos, number = get_pos_and_number(move.l10n_latam_document_number)
                 # versión 4.0 de siprib release 0 no acepta 5 dígitos aún
@@ -464,7 +464,7 @@ class AccountJournal(models.Model):
                     'El partner "%s" (id %s) no tiene número de identificación '
                     'seteada') % (partner.name, partner.id))
 
-            alicuot_line = tax.get_partner_alicuot(partner, line.date)
+            alicuot_line = tax.get_partner_alicuot(partner, line.move_id._found_related_invoice().date or line.date)
             if not alicuot_line:
                 raise ValidationError(_(
                     'No hay alicuota configurada en el partner '
@@ -522,9 +522,12 @@ class AccountJournal(models.Model):
                         line.move_id.display_name))
 
                 # 6 - Tipo de comprobante origen de la retención
-                # por ahora solo tenemos facturas implementadas
-                content += '01'
 
+                #Identificamos si el comprobante de origen es una Factura de credito MiPyMEs sino lo 
+                # tratamos como una factura normal
+                # NOTA: Esto solo aplica para el calculo de Percepciones
+                content += '10' if or_inv.l10n_latam_document_type_id.code in ['201', '206', '211'] else '01'
+                
                 # 7 - Letra del Comprobante
                 if payment:
                     content += ' '
@@ -571,7 +574,7 @@ class AccountJournal(models.Model):
 
             # 4 - Tipo de comprobante origen de la retención
             if internal_type == 'invoice':
-                content += '01'
+                content += '10' if line.move_id.l10n_latam_document_type_id.code in ['201', '206', '211'] else '01'
             elif internal_type == 'debit_note':
                 if es_percepcion:
                     content += '09'
@@ -586,7 +589,7 @@ class AccountJournal(models.Model):
             if payment:
                 content += ' '
             else:
-                content += line.l10n_latam_document_type_id.l10n_ar_letter
+                content += line.l10n_latam_document_type_id.l10n_ar_letter if internal_type == 'invoice' else ' '
 
             # 6 - Nro de comprobante
             content += '%016d' % int(
@@ -712,6 +715,12 @@ class AccountJournal(models.Model):
 
             # 21 - Monto Total Retenido/Percibido
             content += format_amount((-line.balance if not ret_perc_applied else ret_perc_applied), 16, 2, ',')
+
+            # # 22 - Aceptacion
+            content += ' '
+
+            # 24 - Fecha Aceptación "Expresa"
+            content += '          '
 
             content += '\r\n'
 
@@ -844,7 +853,7 @@ class AccountJournal(models.Model):
         line_nbr = 1
         for line in move_lines.filtered('payment_id'):
             alicuot_line = line.tax_line_id.get_partner_alicuot(
-                line.partner_id, line.date)
+                line.partner_id, line.date, line)
             if not alicuot_line:
                 raise ValidationError(_(
                     'No hay alicuota configurada en el partner '
@@ -1051,6 +1060,9 @@ class AccountJournal(models.Model):
             move = line.move_id
             internal_type = line.l10n_latam_document_type_id.internal_type
 
+            if not line.partner_id:
+                raise ValidationError(_(
+                    'La percepción %s (id: %d) del comprobante "%s" (id: %d) no tiene partner asociado.') % (line.name, line.id,line.move_id.name, line.move_id.id))
             line.partner_id.ensure_vat()
 
             content = line.tax_line_id.jurisdiction_code or '000'
@@ -1165,7 +1177,7 @@ class AccountJournal(models.Model):
                 content += '%016d' % int(re.sub('[^0-9]', '', move.l10n_latam_document_number))
                 #Importe del comprobante
                 codop = '1'
-                issue_date = payment.payment_date
+                issue_date = payment.date
                 amount_tot = abs(payment.payment_group_id.payments_amount)
                 # withholdable_base_amount es para ret de gcias, withholding_base_amount es para ret de iva
                 base_amount = payment.withholdable_base_amount or payment.withholding_base_amount
@@ -1285,7 +1297,7 @@ class AccountJournal(models.Model):
         content = ''
         for line in move_lines.sorted(key=lambda r: (r.date, r.id)):
             if line.payment_id:
-                date = line.payment_id.payment_date
+                date = line.payment_id.date
                 content += line.partner_id.ensure_vat()
                 content += line.partner_id.name.ljust(80)[:80]
                 content += '%010d' % int(line.name)
@@ -1309,7 +1321,7 @@ class AccountJournal(models.Model):
             payment = line.payment_id
             if payment:
                 # Fecha
-                content += fields.Date.from_string(payment.payment_date).strftime('%d-%m-%Y') + ','
+                content += fields.Date.from_string(payment.date).strftime('%d-%m-%Y') + ','
 
                 # Tipo de comprobante
                 #    Aquí vemos si se está pagando al menos una nota de crédito
@@ -1341,8 +1353,8 @@ class AccountJournal(models.Model):
                 if not alicuot_line:
                     raise ValidationError(
                     'No hay alicuota configurada en el partner '
-                    '"%s" (id: %s)') % (
-                        line.partner_id.name, line.partner_id.id)
+                    '"%s" (id: %s)' % (
+                        line.partner_id.name, line.partner_id.id))
 
                 content += str(line.tax_line_id.get_partner_alicuot(
                 line.partner_id, line.date).alicuota_retencion) + ','
@@ -1356,18 +1368,18 @@ class AccountJournal(models.Model):
 
                     # pago -> grupo de pagos --> nc --> factura --> grupo de pagos --> pago (con retenc misiones)
                     origin_invoice = payment.payment_group_id.matched_move_line_ids.move_id.reversed_entry_id
+                    tax_withholding_id = payment.tax_withholding_id
                     for payment_group in origin_invoice.payment_group_ids:
                         cant_ret = 0
                         for pay_cr in payment_group.payment_ids:
-                            if pay_cr.tax_withholding_id.tax_group_id.name == 'Retención IIBB Misiones':
+                            if pay_cr.tax_withholding_id == tax_withholding_id:
                                 origin_payment_cr = pay_cr
                                 cant_ret += 1
-
                         if cant_ret != 1 or origin_payment_cr.amount != payment.amount:
-                            raise ValidationError("Solo se admitirá un comprobante de anulación de retención referido a un solo comprobante de retención y la anulación debe ser por un importe igual al importe total de la retención original. Revisar recibo/s %s. El recibo que anula la retención es %s (id: %s)".format(origin_invoice.payment_group_ids.mapped('name'), payment.payment_group_id.name, payment.payment_group_id.id))
+                            raise ValidationError("Solo se admitirá un comprobante de anulación de retención referido a un solo comprobante de retención y la anulación debe ser por un importe igual al importe total de la retención original. Revisar recibo/s %s. El recibo que anula la retención es %s (id: %s)" % (origin_invoice.payment_group_ids.mapped('name'), payment.payment_group_id.name, payment.payment_group_id.id))
 
-                        payment_date = payment.payment_date
-                        origin_payment_cr_date = origin_payment_cr.payment_date
+                        payment_date = payment.date
+                        origin_payment_cr_date = origin_payment_cr.date
                         if (payment_date.year - origin_payment_cr_date.year) * 12 + (payment_date.month - origin_payment_cr_date.month) > 2:
                             raise ValidationError("Solo se admitirá un comprobante de anulación de retención para un comprobante de origen dentro de los dos períodos anteriores. Revisar recibo/s %s. El recibo que anula la retención es %s (id: %s)".format(origin_invoice.payment_group_ids.mapped('name'), payment.payment_group_id.name, payment.payment_group_id.id))
 
@@ -1383,7 +1395,7 @@ class AccountJournal(models.Model):
                     content += origin_payment_cr.withholding_number.replace('-','')[:20] + ','
 
                     # Fecha del comprobante que dio origen a la nota de crédito
-                    content += origin_payment_cr.payment_date.strftime('%d-%m-%Y') + ','
+                    content += origin_payment_cr.date.strftime('%d-%m-%Y') + ','
 
                     # CUIT del comprobante que dio origen a la nota de crédito
                     partner_vat = origin_payment_cr.partner_id.ensure_vat()
@@ -1411,10 +1423,7 @@ class AccountJournal(models.Model):
                 content += partner_vat + ','
 
                 # Importe de la operación, consultar si l10n_latam_price_net es correcto
-                tax_group_id = line.tax_line_id.tax_group_id.id
-                for x in line.move_id.amount_by_group:
-                    if x[-1] == tax_group_id:
-                        content += str(x[2]) + ','
+                content += str(line.tax_base_amount) + ','
 
                 # Alícuota
                 alicuot_line = line.tax_line_id.get_partner_alicuot(
@@ -1430,7 +1439,7 @@ class AccountJournal(models.Model):
 
                     # Comprobante de origen
                     origin_invoice = line.move_id.reversed_entry_id
-                    
+
                     if not origin_invoice:
                         raise ValidationError("No puede generarse la descarga si en el archivo hay percepciones en notas de crédito y dichas notas de cŕedito no tienen indicado cuál es el comprobante original que se está revirtiendo (ejemplo: una factura). Revisar %s (id: %s)." % (line.move_id.name, line.move_id.id))
 
@@ -1490,10 +1499,10 @@ class AccountJournal(models.Model):
                 content += payment.partner_id.ensure_vat()
 
                 # fecha retención (long 10)
-                content += fields.Date.from_string(payment.payment_date).strftime('%d/%m/%Y')
+                content += fields.Date.from_string(payment.date).strftime('%d/%m/%Y')
 
                 # número comprobante (long 16)
-                content += re.sub('[^0-9\.]', '', payment.withholding_number).ljust(16, '0')
+                content += re.sub(r'[^0-9\.]', '', payment.withholding_number).ljust(16, '0')
 
                 # Aclaración importante: estamos agregando ceros entre el número de comprobante y el importe de retención
                 # esto contradice la especificación que dice que debe haber espacios pero en la tarea 31418 nos indicaron
@@ -1506,9 +1515,9 @@ class AccountJournal(models.Model):
                 codigo_regimen = line.tax_line_id.codigo_regimen
                 if not codigo_regimen:
                     raise ValidationError(_('No hay código de régimen en la configuración del impuesto "%s"') % (
-                        line.tax_withholding_id.name))
+                        line.tax_line_id.name))
                 if len(codigo_regimen) < 3:
-                    raise ValidationError(_('El código de régimen tiene que tener 3 dígitos en la configuración del impuesto "%s"') % (line.tax_withholding_id.name))
+                    raise ValidationError(_('El código de régimen tiene que tener 3 dígitos en la configuración del impuesto "%s"') % (line.tax_line_id.name))
                 content += codigo_regimen[:3]
 
                 # cuit agente (long 11)

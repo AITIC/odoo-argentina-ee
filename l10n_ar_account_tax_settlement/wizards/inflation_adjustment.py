@@ -33,10 +33,6 @@ class InflationAdjustment(models.TransientModel):
         domain=[('deprecated', '=', False)],
         required=True,
     )
-    analytic_account_id = fields.Many2one(
-        'account.analytic.account',
-        'Analytic Account',
-    )
     start_index = fields.Float(
         compute='_compute_index',
         )
@@ -175,7 +171,7 @@ class InflationAdjustment(models.TransientModel):
         # Generate account.move.line adjustment for start of the period
         domain = self.get_move_line_domain()
         domain += [
-            ("account_id.user_type_id.include_initial_balance", '=', True),
+            ("account_id.include_initial_balance", '=', True),
             ('date', '<', self.date_from)]
         init_data = account_move_line.read_group(
             domain, ['account_id', 'balance'], ['account_id'],
@@ -201,7 +197,6 @@ class InflationAdjustment(models.TransientModel):
                     FormatAmount(line.get('balance')), initial_factor * 100.0),
                 'date_maturity': before_date_from,
                 'debit' if adjustment > 0 else 'credit': abs(adjustment),
-                'analytic_account_id': self.analytic_account_id.id,
             })
             adjustment_total[
                 'debit' if adjustment > 0 else 'credit'] += abs(adjustment)
@@ -232,14 +227,13 @@ class InflationAdjustment(models.TransientModel):
                         period.get('factor') * 100.0),
                     'date_maturity': period.get('date_from'),
                     'debit' if adjustment > 0 else 'credit': abs(adjustment),
-                    'analytic_account_id': self.analytic_account_id.id,
                 })
                 adjustment_total[
                     'debit' if adjustment > 0 else 'credit'] += abs(adjustment)
 
         if not lines:
             raise UserError(_(
-                "No hemos encontrado ningún asiento contable asociado al"
+                "No hemos encontrado ningún asiento contable para ajustar asociado al"
                 " periodo seleccionado."
             ))
 
@@ -252,14 +246,13 @@ class InflationAdjustment(models.TransientModel):
                 self.date_from, self.date_to),
             'debit' if adj_diff < 0 else 'credit': abs(adj_diff),
             'date_maturity': self.date_to,
-            'analytic_account_id': self.analytic_account_id.id,
         })
 
         # Generate account.move
-        move = self.env['account.move'].create({
+        move = self.env['account.move'].with_context(skip_invoice_sync=True).create({
             'journal_id': self.journal_id.id,
             'date': self.date_to,
             'ref': _('Ajuste por inflación %s') % (date_to.year),
             'line_ids': [(0, 0, line_data) for line_data in lines],
         })
-        return move.get_access_action()
+        return move._get_access_action()

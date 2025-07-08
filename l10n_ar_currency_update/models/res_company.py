@@ -3,6 +3,7 @@
 # directory
 ##############################################################################
 from odoo import fields, models, api, _
+from odoo.exceptions import UserError
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import logging
@@ -26,19 +27,20 @@ class ResCompany(models.Model):
     )
     l10n_ar_last_currency_sync_date = fields.Date(string="AFIP Last Sync Date", readonly=True)
 
-    @api.model
+    @api.model_create_multi
     def create(self, values):
         """ Overwrite to include new currency provider """
-        if values.get('country_id') and 'currency_provider' not in values:
-            country = self.env['res.country'].browse(values['country_id'])
-            if country.code.upper() == 'AR':
-                values['currency_provider'] = 'afip'
+        for index in range(len(values)):
+            if values[index].get('country_id') and 'currency_provider' not in values[index]:
+                country = self.env['res.country'].browse(values[index]['country_id'])
+                if country.code.upper() == 'AR':
+                    values[index]['currency_provider'] = 'afip'
         return super().create(values)
 
     @api.model
-    def set_special_defaults_on_install(self):
+    def _compute_currency_provider(self):
         """ Overwrite to include new currency provider """
-        super().set_special_defaults_on_install()
+        super()._compute_currency_provider()
         ar_companies = self.search([]).filtered(lambda company: company.country_id.code == 'AR')
         if ar_companies:
             ar_companies.currency_provider = 'afip'
@@ -84,14 +86,20 @@ class ResCompany(models.Model):
 
                 # Do not pass company since we need to find the one that has certificate
                 afip_date, rate = currency._l10n_ar_get_afip_ws_currency_rate()
-
-                if datetime.strptime(afip_date, "%Y%m%d").date() + relativedelta(days=1) == rate_date:
+                afip_date = datetime.strptime(afip_date, "%Y%m%d").date() + relativedelta(days=1)
+                if afip_date == rate_date:
                     res.update({currency.name: (1.0 / rate, rate_date)})
                     _logger.log(25, "Currency %s %s %s", currency.name, rate_date, rate)
+                else:
+                    raise UserError("Returned Afip rate is not today's rate (%s, %s vs %s, %s)"
+                                    % (afip_date.strftime("%A"), afip_date, rate_date.strftime("%A"), rate_date))
                 self.env.company = env_company
             except Exception as e:
                 self.env.company = env_company
                 _logger.log(25, "Could not get rate for currency %s. This is what we get:\n%s", currency.name, e)
+            else:
+                for company in self.filtered(lambda x: x.currency_provider == 'afip'):
+                    company.l10n_ar_last_currency_sync_date = fields.Date.context_today(self.with_context(tz='America/Argentina/Buenos_Aires'))
         return res or False
 
     def _generate_currency_rates(self, parsed_data):
@@ -125,5 +133,3 @@ class ResCompany(models.Model):
                 super(ResCompany, company)._generate_currency_rates(new_parsed_data)
             else:
                 super(ResCompany, company)._generate_currency_rates(parsed_data)
-            if company.currency_provider == 'afip':
-                company.l10n_ar_last_currency_sync_date = fields.Date.context_today(self.with_context(tz='America/Argentina/Buenos_Aires'))

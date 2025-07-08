@@ -1,4 +1,4 @@
-from odoo import models, _
+from odoo import models, fields, _, api
 from odoo.exceptions import UserError
 from odoo.tools import format_date
 import datetime
@@ -6,6 +6,10 @@ import datetime
 
 class AccountJournal(models.Model):
     _inherit = "account.journal"
+
+    check_add_debit_button = fields.Boolean(
+        string="Agregar botón de débito", compute='_compute_check_add_debit_journal', store=True, readonly=False,
+        help="Si marca esta opción podrá debitar los cheques con un botón desde los mismos. Para realizar el asiento de débito se buscará un método de pago saliente del tipo Manual con nombre Manual, si no se encuentra uno se utilizará el primero que sea del tipo Manual (sin importar el nombre). Se utilizará luego la cuenta configurada en dicho método de ese método de pago.")
 
     def l10n_ar_check_afip_doc_types(self):
         """ This method shows the valid document types for each Webservice. """
@@ -27,11 +31,12 @@ class AccountJournal(models.Model):
 
     def _format_afip_doc_types(self, ws, response):
         """ Given the response and the Webservice used, returns a more legible message to be shown to the users. """
+        events = False
         if ws == 'wsfe':
             if response['Errors']:
                 raise UserError(response['Errors'])
             elif response['Events']:
-                raise UserError(response['Events'])
+                events = str(response['Events'])
             result_key = 'ResultGet'
             voucher_key = 'CbteTipo'
             id_key = 'Id'
@@ -44,8 +49,7 @@ class AccountJournal(models.Model):
             if response[error_key]['ErrMsg'] != 'OK':
                 raise UserError(response[error_key]['ErrMsg'])
             elif response[events_key]['EventMsg'] != 'Ok':
-                raise UserError(response[events_key]['EventMsg'])
-
+                events = str(response[events_key]['EventMsg'])
             result_key = 'FEXResultGet' if ws == 'wsfex' else 'BFEResultGet'
             voucher_key = 'ClsFEXResponse_Cbte_Tipo' if ws == 'wsfex' else 'ClsBFEResponse_Tipo_Cbte'
             id_key = 'Cbte_Id'
@@ -61,4 +65,12 @@ class AccountJournal(models.Model):
                 date_to = format_date(self.env, datetime.datetime.strptime(document[date_to_key], '%Y%m%d'), date_format='dd/MM/Y')
                 line += " hasta: " + date_to
             msg += line + "\n"
+        if events:
+            msg += "\n\nAdicional AFIP devuelve este evento: " + events
         return msg
+
+    @api.depends('l10n_latam_manual_checks')
+    def _compute_check_add_debit_journal(self):
+        """ Si el campo 'Use electronic and deferred checks' (l10n_latam_manual_checks) es 'False' entonces el campo 'Agregar botón de débito' (check_add_debit_button) también debe ser 'False'. """
+        for journal in self.filtered(lambda x: not x.l10n_latam_manual_checks):
+            journal.check_add_debit_button = False

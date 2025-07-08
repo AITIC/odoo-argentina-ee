@@ -1,0 +1,155 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* l10n_ar_account_tax_settlement_mendoza
+# 
+# Translators:
+# Juan José Scarafía <scarafia.juanjose@gmail.com>, 2024
+# 
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 16.0+e\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-10-29 20:55+0000\n"
+"PO-Revision-Date: 2024-10-29 20:55+0000\n"
+"Last-Translator: Juan José Scarafía <scarafia.juanjose@gmail.com>, 2024\n"
+"Language-Team: Spanish (https://app.transifex.com/adhoc/teams/46451/es/)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Language: es\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model_terms:ir.ui.view,arch_db:l10n_ar_account_tax_settlement_mendoza.res_config_settings_view_form
+msgid ""
+"<span class=\"fa fa-lg fa-building-o\" title=\"Values set here are company-"
+"specific.\" groups=\"base.group_multi_company\"/>"
+msgstr ""
+"<span class=\"fa fa-lg fa-building-o\" title=\"Los valores establecidos aquí"
+" son específicos de la empresa.\" groups=\"base.group_multi_company\"/>"
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model.fields,field_description:l10n_ar_account_tax_settlement_mendoza.field_account_bank_statement_line__actividades_padron
+#: model:ir.model.fields,field_description:l10n_ar_account_tax_settlement_mendoza.field_account_move__actividades_padron
+#: model:ir.model.fields,field_description:l10n_ar_account_tax_settlement_mendoza.field_account_payment__actividades_padron
+msgid "Actividades"
+msgstr ""
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model.fields,field_description:l10n_ar_account_tax_settlement_mendoza.field_account_bank_statement_line__activities_mendoza_ids
+#: model:ir.model.fields,field_description:l10n_ar_account_tax_settlement_mendoza.field_account_move__activities_mendoza_ids
+#: model:ir.model.fields,field_description:l10n_ar_account_tax_settlement_mendoza.field_account_payment__activities_mendoza_ids
+msgid "Activities in Mendoza"
+msgstr ""
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model_terms:ir.ui.view,arch_db:l10n_ar_account_tax_settlement_mendoza.res_config_settings_view_form
+msgid "Agregar archivo csv de Riesgo Fiscal:"
+msgstr ""
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model.fields,field_description:l10n_ar_account_tax_settlement_mendoza.field_afip_activity__alicuota_general
+msgid "Alicuota General"
+msgstr ""
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model.fields,field_description:l10n_ar_account_tax_settlement_mendoza.field_account_payment__alicuota_mendoza
+#: model:ir.model.fields,field_description:l10n_ar_account_tax_settlement_mendoza.field_account_payment_group__alicuota_mendoza
+msgid "Alicuota Mendoza"
+msgstr ""
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model.fields,field_description:l10n_ar_account_tax_settlement_mendoza.field_res_company__riesgo_fiscal_csv_file
+#: model:ir.model.fields,field_description:l10n_ar_account_tax_settlement_mendoza.field_res_config_settings__riesgo_fiscal_csv_file
+msgid "CSV Riesgo Fiscal"
+msgstr ""
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model,name:l10n_ar_account_tax_settlement_mendoza.model_res_company
+msgid "Companies"
+msgstr "Compañías"
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model,name:l10n_ar_account_tax_settlement_mendoza.model_res_config_settings
+msgid "Config Settings"
+msgstr "Ajustes de configuración"
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#. odoo-python
+#: code:addons/l10n_ar_account_tax_settlement_mendoza/models/account_journal.py:0
+#, python-format
+msgid "Editar Impuesto"
+msgstr ""
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#. odoo-python
+#: code:addons/l10n_ar_account_tax_settlement_mendoza/models/account_journal.py:0
+#, python-format
+msgid ""
+"El impuesto '%s' not tiene código de regimen en solapa 'Opciones avanzadas' "
+"campo 'Codigo de regimen'."
+msgstr ""
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model.fields,help:l10n_ar_account_tax_settlement_mendoza.field_account_payment_group__alicuota_mendoza
+msgid "Guardamos la alícuota para el txt de mendoza."
+msgstr ""
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model,name:l10n_ar_account_tax_settlement_mendoza.model_account_journal
+msgid "Journal"
+msgstr "Diario"
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model,name:l10n_ar_account_tax_settlement_mendoza.model_account_move
+msgid "Journal Entry"
+msgstr "Asiento contable"
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model.fields,field_description:l10n_ar_account_tax_settlement_mendoza.field_afip_activity__no_posee_certificado_tasa_cero
+msgid "No Posee Certificado Tasa Cero"
+msgstr ""
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model,name:l10n_ar_account_tax_settlement_mendoza.model_account_payment_group
+msgid "Payment Group"
+msgstr "Grupo de Pago"
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model,name:l10n_ar_account_tax_settlement_mendoza.model_account_payment
+msgid "Payments"
+msgstr "Pagos"
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model.fields,field_description:l10n_ar_account_tax_settlement_mendoza.field_afip_activity__posee_tasa_cero
+msgid "Posee Tasa Cero"
+msgstr ""
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model_terms:ir.ui.view,arch_db:l10n_ar_account_tax_settlement_mendoza.res_config_settings_view_form
+msgid "Riesgo Fiscal"
+msgstr ""
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model.fields,field_description:l10n_ar_account_tax_settlement_mendoza.field_res_company__riesgo_fiscal_csv_file_last_update
+#: model:ir.model.fields,field_description:l10n_ar_account_tax_settlement_mendoza.field_res_config_settings__riesgo_fiscal_csv_file_last_update
+msgid "Riesgo Fiscal Csv File Last Update"
+msgstr ""
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#. odoo-python
+#: code:addons/l10n_ar_account_tax_settlement_mendoza/models/account_journal.py:0
+#: model:ir.model,name:l10n_ar_account_tax_settlement_mendoza.model_account_tax
+#, python-format
+msgid "Tax"
+msgstr "Impuesto"
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model:ir.model,name:l10n_ar_account_tax_settlement_mendoza.model_afip_activity
+msgid "afip.activity"
+msgstr ""
+
+#. module: l10n_ar_account_tax_settlement_mendoza
+#: model_terms:ir.ui.view,arch_db:l10n_ar_account_tax_settlement_mendoza.res_config_settings_view_form
+msgid "Última Modificación"
+msgstr ""

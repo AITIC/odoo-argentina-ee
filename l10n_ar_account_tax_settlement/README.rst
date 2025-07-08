@@ -14,6 +14,14 @@
 Tax Settlements For Argentina
 =============================
 
+Este módulo imlementa:
+
+* archivos para declaración de distintos impuestos (principalmente percepciones y retenciones)
+* Funcionalidad y datos para auste por inflación (The index are extracted from https://www.facpce.org.ar/indices-facpce/)
+
+Archivos para declaración de impuestos
+======================================
+
 TODO: implementar sicore para percepciones, por ahora solo esta para retenciones (y de ganancias)
 Especificación de archivos:
 
@@ -27,7 +35,9 @@ Especificación de archivos:
 
 * ARBA: https://www.arba.gov.ar/Apartados/Agentes/PresentacionDDJJ.asp?lugar=P?apartado=AGENTES
 
-* AGIP: https://www.agip.gob.ar/filemanager/source/Agentes/DocTecnicoImpoOperacionesDise%C3%B1odeRegistro.pdf y https://www.agip.gob.ar/agentes/agentes-de-recaudacion/ib-agentes-recaudacion/aplicativo-arciba/ag-rec-arciba-codigo-de-normas
+* AGIP:  https://www.agip.gob.ar/agentes/agentes-de-recaudacion/ib-agentes-recaudacion/aplicativo-arciba/aclaraciones-sobre-las-adecuaciones-al-aplicativo-e-arciba- (Version 3.0 aplicada el 07-05-2024)
+   * Notas de credito  https://www.agip.gob.ar/filemanager/source/Agentes/De%20Recaudacion/Ingresos%20brutos/NC.PDF
+   * Retencion y percepciones  https://www.agip.gob.ar/filemanager/source/Agentes/De%20Recaudacion/Ingresos%20brutos/RP.PDF
 
 * MENDOZA https://www.atm.mendoza.gov.ar/portalatm/ModificarParametros?tipo=descargarUrl&url=/zoneBottom/serviciosDescargas/sarepe/files/SAREPE.pdf
 
@@ -43,10 +53,6 @@ Especificación de archivos:
 * MISIONES: https://www.atm.misiones.gob.ar/index.php/guia-de-tramites/instructivos/category/53-agentes
             Correo DGR: mesadeayuda@tsgroup.com.ar
 
-Inflation Adjustment
---------------------
-
-The index are extracted from https://www.facpce.org.ar/indices-facpce/ page
 
 Installation
 ============

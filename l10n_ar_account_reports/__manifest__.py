@@ -19,7 +19,7 @@
 ##############################################################################
 {
     'name': 'Accounting Reports Customized for Argentina',
-    'version': '13.0.1.2.0',
+    'version': "16.0.1.3.0",
     'category': 'Accounting',
     'sequence': 14,
     'summary': '',
@@ -31,12 +31,12 @@
     'depends': [
         'account_reports',
         'l10n_ar',
-        'account_check',
+        'l10n_latam_check',
     ],
     'data': [
-        'views/account_journal_dashboard_view.xml',
         'wizards/checks_to_date_view.xml',
         'reports/report_checks_to_date.xml',
+        'security/ir.model.access.csv',
     ],
     'demo': [
     ],

@@ -39,7 +39,7 @@ class InflationAdjustmentIndex(models.Model):
     def check_date_unique(self):
         for rec in self:
             repeated = self.find(rec.date)
-            if len(repeated) > 1:
+            if len(repeated) > 1 or repeated.id != rec.id:
                 rec_date = fields.Date.from_string(rec.date)
                 raise ValidationError(_(
                     "Ya existe un indice para el periodo %s %s. Solo"
@@ -58,7 +58,7 @@ class InflationAdjustmentIndex(models.Model):
     def check_xml_id(self):
         """ always create the xml_id when create a new record of this model.
         """
-        if self.env.context.get('install_mode', False):
+        if self.env.context.get('install_mode', False) and not self.env.context.get('import_file'):
             return
 
         model_data = self.env['ir.model.data']

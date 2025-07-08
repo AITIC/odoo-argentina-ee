@@ -7,15 +7,12 @@ class AccountPaymentGroupInvoiceWizard(models.TransientModel):
     l10n_ar_afip_asoc_period_start = fields.Date(
         'Associate Period From',
     )
-
     l10n_ar_afip_asoc_period_end = fields.Date(
         'Associate Period To',
     )
-
     origin_invoice_id = fields.Many2one(
         'account.move',
     )
-
     commercial_partner_id = fields.Many2one(
         'res.partner',
         related="payment_group_id.partner_id.commercial_partner_id"
@@ -24,11 +21,11 @@ class AccountPaymentGroupInvoiceWizard(models.TransientModel):
     def get_invoice_vals(self):
         self.ensure_one()
         invoice_vals = super().get_invoice_vals()
-        origin_doc = "reversed_entry_id" if invoice_vals['type'] in ['in_refund', 'out_refund'] else "debit_origin_id"
+        origin_doc = "reversed_entry_id" if invoice_vals['move_type'] in ['in_refund', 'out_refund'] else "debit_origin_id"
         invoice_vals.update({
             'l10n_ar_afip_asoc_period_start': self.l10n_ar_afip_asoc_period_start,
             'l10n_ar_afip_asoc_period_end': self.l10n_ar_afip_asoc_period_end,
-            origin_doc: self.origin_invoice_id
+            origin_doc: self.origin_invoice_id.id,
         })
 
         # Si estamos creando una ND automatica con el modulo de  account_payment_group_financial_surcharge entonces

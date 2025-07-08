@@ -1,6 +1,6 @@
 from odoo import models, fields, _
 from odoo.exceptions import UserError
-import zeep
+from odoo.tools.zeep.helpers import serialize_object
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class ResPartner(models.Model):
         wiz = self.env['res.partner.update.from.padron.wizard'].with_context(
             active_ids=self.ids, active_model=self._name).create({})
         wiz.change_partner()
-        action = self.env.ref('l10n_ar_edi_ux.action_partner_update').read()[0]
+        action = self.env["ir.actions.actions"]._for_xml_id('l10n_ar_edi_ux.action_partner_update')
         action['res_id'] = wiz.id
         return action
 
@@ -34,6 +34,76 @@ class ResPartner(models.Model):
         """
         self.ensure_one()
         return True
+
+    def _clean_response_obj(self, xml_tag, default_replace={}):
+        """
+        Este método procesa el response que nos devuelve afip para reemplazar los valores `None` por un valor predeterminado
+        basado en el tipo de dato especificado. Si el response en sí es `None` o está vacío,
+        lo reemplaza completamente con el valor indicado en el parámetro `type_replace`.
+
+        El mapeo de tipos de datos y sus valores predeterminados se define en la variable interna `replace_values`.
+
+        :param xml_tag: El respopnse o valor que se debe procesar.
+                        Si está vacío o es `None`, se reemplaza completamente por `type_replace`.
+        :param type_replace: Valor que se usará como reemplazo global si el diccionario está vacío o es `None`.
+        :return: Diccionario modificado con los valores `None` reemplazados según el tipo especificado.
+        """
+        res = {}
+        replace_values = {
+            'datosGenerales': {},
+            'caracterizacion': [],
+            'domicilioFiscal': {},
+            'codPostal': '',
+            'descripcionProvincia': '',
+            'direccion': '',
+            'localidad': '',
+            'tipoDomicilio': '',
+            'datoAdicional': '',
+            'tipoDatoAdicional': '',
+            'esSucesion': '',
+            'estadoClave': '',
+            'apellido': '',
+            'dependencia': '',
+            'nombre': '',
+            'razonSocial': '',
+            'tipoClave': '',
+            'tipoPersona': '',
+            'datosMonotributo': {},
+            'datosRegimenGeneral': {},
+            'actividad': [],
+            'impuesto': [],
+            'regimen': [],
+            'errorConstancia': '',
+            'errorMonotributo': '',
+            'errorRegimenGeneral': '',
+            'descripcionActividad': '',
+            'descripcionImpuesto': '',
+            'descripcionRegimen': '',
+            'tipoRegimen': '',
+            'metadata': {},
+            'servidor': '',
+        }
+
+        # Si el diccionario es None o vacío, lo reemplazamos por el valor dado en type_replace
+        if not xml_tag:
+            return default_replace
+
+        # Si el diccionario tiene valores, recorremos y reemplazamos los valores None
+        # Si el valor en si es un diccionario lo limpiamops tambien
+        if isinstance(xml_tag, dict):  # Procesar si es un diccionario
+            cleaned = {}
+            for key, value in xml_tag.items():
+                type_replace = replace_values.get(key, default_replace)
+                if isinstance(value, dict):
+                    cleaned[key] = self._clean_response_obj(value, default_replace=type_replace)
+                elif isinstance(value, list):
+                    cleaned[key] = [
+                        self._clean_response_obj(item, default_replace=type_replace) if isinstance(item, (dict, list)) else (type_replace if item is None else item)
+                        for item in value
+                    ]
+                else:
+                    cleaned[key] = type_replace if value is None else value
+            return cleaned
 
     def get_data_from_padron_afip(self):
         self.ensure_one()
@@ -67,8 +137,13 @@ class ResPartner(models.Model):
 
         if errors:
             raise UserError(error_msg % (self.name, vat, errors))
+        
+        # Serializamos una sola vez
+        res = serialize_object(res, dict)
+        res = self._clean_response_obj(res)
 
-        data = zeep.helpers.serialize_object(res.datosGenerales, dict)
+        data = res.get('datosGenerales')
+
         if not data:
             raise UserError(error_msg % (self.name, vat, res))
 
@@ -76,9 +151,10 @@ class ResPartner(models.Model):
         if not denominacion or denominacion == ', ':
             raise UserError(error_msg % (self.name, vat, 'La afip no devolvió nombre'))
 
-        domicilio = data.get("domicilioFiscal", {})
-        data_mt = zeep.helpers.serialize_object(res.datosMonotributo, dict) or {}
-        data_rg = zeep.helpers.serialize_object(res.datosRegimenGeneral, dict) or {}
+        domicilio = data.get("domicilioFiscal")
+        data_mt = res.get('datosMonotributo')
+        data_rg = res.get('datosRegimenGeneral')
+
         impuestos = [imp["idImpuesto"]
                      for imp in data_mt.get("impuesto", []) + data_rg.get("impuesto", [])
                      if data.get('estadoClave') == 'ACTIVO']
@@ -89,6 +165,45 @@ class ResPartner(models.Model):
 
         actividades = [str(act["idActividad"])
                        for act in data_rg.get("actividad", []) + data_mt_actividades]
+
+        def check_activity(data_rg, data_mt):
+            res = []
+            new_activity = {}
+            afip_activities = data_rg.get("actividad", []) + ([data_mt.get("actividadMonotributista", [])] if data_mt else [])
+            actividades = self.env['afip.activity'].sudo()
+            activity_codes = actividades.search([]).mapped('code')
+            for act in afip_activities:
+                if str(act.get('idActividad')) not in activity_codes:
+                    new_activity.update({
+                        'code': act.get('idActividad'),
+                        'name': act.get('descripcionActividad')
+                    })
+                    activity = actividades.create(new_activity)
+                    res.append(activity)
+                else:
+                    res.append(act)
+            return res
+        check_activity(data_rg, data_mt)
+
+        def check_taxes(data_mt, data_rg):
+            res = []
+            new_tax = {}
+            afip_taxes = data_mt.get("impuesto", []) + data_rg.get("impuesto", [])
+            taxes = self.env['afip.tax'].sudo()
+            tax_codes = taxes.search([]).mapped('code')
+            for imp in afip_taxes:
+                if str(imp.get('idImpuesto')) not in tax_codes:
+                    new_tax.update({
+                        'code': imp.get('idImpuesto'),
+                        'name': imp.get('descripcionImpuesto')
+                    })
+                    tax = taxes.create(new_tax)
+                    res.append(tax)
+                else:
+                    res.append(imp)
+            return res
+        check_taxes(data_mt, data_rg)
+
         cat_mt = data_mt.get("categoriaMonotributo", {})
         monotributo = "S" if cat_mt else "N"
         map_pronvincias = {

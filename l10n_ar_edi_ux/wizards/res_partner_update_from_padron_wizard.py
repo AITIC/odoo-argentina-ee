@@ -1,3 +1,5 @@
+import re
+
 from odoo import models, api, fields, _
 from ast import literal_eval
 from odoo.exceptions import UserError
@@ -13,9 +15,10 @@ class ResPartnerUpdateFromPadronField(models.TransientModel):
         'res.partner.update.from.padron.wizard',
         'Wizard',
     )
-    field = fields.Char()
+    field = fields.Char("Technical Name")
     old_value = fields.Char()
     new_value = fields.Char()
+    label = fields.Char("Field")
 
 
 class ResPartnerUpdateFromPadronWizard(models.TransientModel):
@@ -63,7 +66,14 @@ class ResPartnerUpdateFromPadronWizard(models.TransientModel):
 
     @api.model
     def get_fields(self):
-        return self.env['ir.model.fields'].search(self._get_domain())
+        res = self.env['res.partner.update.from.padron.info']
+        exsiting_info_field = res.search([])
+        for item in self.env['ir.model.fields'].sudo().search(self._get_domain()):
+            infof = exsiting_info_field.filtered(lambda x: x.real_name == item.name)
+            if not infof:
+                infof = res.create({'real_name': item.name, 'name': item.field_description})
+            res |= infof
+        return res
 
     state = fields.Selection([
         ('option', 'Option'),
@@ -100,22 +110,24 @@ class ResPartnerUpdateFromPadronWizard(models.TransientModel):
         default=_get_default_title_case,
     )
     field_to_update_ids = fields.Many2many(
-        'ir.model.fields',
-        'res_partner_update_fields',
+        'res.partner.update.from.padron.info',
+        'res_partner_update_fields_info',
         'update_id', 'field_id',
         string='Fields To Update',
         help='Only this fields are going to be retrived and updated',
         default=get_fields,
-        domain=_get_domain,
         required=True,
     )
+
+    wizard_error = fields.Html()
 
     @api.onchange('partner_id')
     def change_partner(self):
         self.ensure_one()
         self.field_ids.unlink()
         partner = self.partner_id
-        fields_names = self.field_to_update_ids.mapped('name')
+        field_label = dict([(item.real_name, item.name) for item in self.field_to_update_ids])
+        fields_names = self.field_to_update_ids.mapped('real_name')
         if partner:
             partner_vals = partner.get_data_from_padron_afip()
             lines = []
@@ -135,6 +147,7 @@ class ResPartnerUpdateFromPadronWizard(models.TransientModel):
                     line_vals = {
                         'wizard_id': self.id,
                         'field': key,
+                        'label': field_label.get(key),
                         'old_value': old_value,
                         # 'new_value': new_value,
                         'new_value': new_value or False,
@@ -160,8 +173,19 @@ class ResPartnerUpdateFromPadronWizard(models.TransientModel):
     def automatic_process_cb(self):
         for partner in self.partner_ids:
             self.partner_id = partner.id
-            self.change_partner()
-            self._update()
+            try:
+                self.change_partner()
+                self._update()
+            except (UserError) as exp:
+                #Procesamos el error que nos devuelve afip
+                patron = re.compile(r"'error': \['(.*?)'\]")
+                resultado = patron.search(str(exp))
+                if resultado:
+                    error = resultado.group(1)
+                else:
+                    error = str(exp)
+                partner.message_post(body=error)
+                continue
         self.write({'state': 'finished'})
         return {
             'type': 'ir.actions.act_window',
@@ -193,7 +217,6 @@ class ResPartnerUpdateFromPadronWizard(models.TransientModel):
 
     def _next_screen(self):
         self.ensure_one()
-        self.refresh()
         values = {}
         if self.partner_ids:
             # in this case, we try to find the next record.
@@ -201,16 +224,30 @@ class ResPartnerUpdateFromPadronWizard(models.TransientModel):
             values.update({
                 'partner_id': partner.id,
                 'state': 'selection',
+                'wizard_error': False,
             })
         else:
             values.update({
                 'state': 'finished',
+                'wizard_error': False,
+                'partner_id': False,
             })
 
         self.write(values)
         # because field is not changed, view is distroyed and reopen, on change
         # is not called an we call it manually
-        self.change_partner()
+        try:
+            self.change_partner()
+        except (UserError) as exp:
+            #Procesamos el error que nos devuelve afip
+            patron = re.compile(r"'error': \['(.*?)'\]")
+            resultado = patron.search(str(exp))
+            if resultado:
+                error = resultado.group(1)
+            else:
+                error = str(exp)
+            partner.message_post(body=error)
+            self.wizard_error = '<div class= "alert alert-warning" role="alert" style="margin-bottom:0px;" >' + error + '</div>'
         return {
             'type': 'ir.actions.act_window',
             'res_model': self._name,
@@ -223,3 +260,12 @@ class ResPartnerUpdateFromPadronWizard(models.TransientModel):
         """ Start the process. """
         self.ensure_one()
         return self._next_screen()
+
+
+class ResPartnerUpdateFromPadronInfo(models.TransientModel):
+    _name = 'res.partner.update.from.padron.info'
+    _description = 'res.partner.update.from.padron.info'
+
+    name = fields.Char("Nombre Campo")
+    real_name = fields.Char("Campo")
+    wizard_id = fields.Many2one('res.partner.update.from.padron.wizard')

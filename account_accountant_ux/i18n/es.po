@@ -1,29 +1,73 @@
 # Translation of Odoo Server.
 # This file contains the translation of the following modules:
 # 	* account_accountant_ux
-#
+# 
+# Translators:
+# Juan José Scarafía <scarafia.juanjose@gmail.com>, 2025
+# 
 msgid ""
 msgstr ""
-"Project-Id-Version: Odoo Server 13.0+e\n"
+"Project-Id-Version: Odoo Server 16.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-18 10:45+0000\n"
-"PO-Revision-Date: 2021-07-18 10:45+0000\n"
-"Last-Translator: \n"
-"Language-Team: \n"
+"POT-Creation-Date: 2025-04-16 14:28+0000\n"
+"PO-Revision-Date: 2023-01-13 13:45+0000\n"
+"Last-Translator: Juan José Scarafía <scarafia.juanjose@gmail.com>, 2025\n"
+"Language-Team: Spanish (https://app.transifex.com/adhoc/teams/46451/es/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: \n"
-"Plural-Forms: \n"
+"Language: es\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
 
 #. module: account_accountant_ux
-#: model:ir.model,name:account_accountant_ux.model_account_financial_html_report
-msgid "Account Report (HTML)"
-msgstr "Informe de cuenta (HTML)"
+#: model_terms:ir.ui.view,arch_db:account_accountant_ux.res_config_settings_view_form
+msgid ""
+"<span class=\"fa fa-lg fa-building-o\" title=\"Values set here are company-"
+"specific.\" groups=\"base.group_multi_company\"/>"
+msgstr ""
+"<span class=\"fa fa-lg fa-building-o\" title=\"Los valores configurados aquí"
+" son específicos de cada compañía.\" groups=\"base.group_multi_company\"/>"
+
+#. module: account_accountant_ux
+#: model_terms:ir.ui.view,arch_db:account_accountant_ux.account_journal_dashboard_kanban_view
+msgid "<span title=\"Balance in Odoo\">Balance in GL</span>"
+msgstr "Balance en Libro Mayor"
+
+#. module: account_accountant_ux
+#: model_terms:ir.ui.view,arch_db:account_accountant_ux.customer_statements_form_view
+msgid "Amount residual on company currency"
+msgstr "Monto residual en moneda de la compañía"
+
+#. module: account_accountant_ux
+#: model_terms:ir.ui.view,arch_db:account_accountant_ux.res_config_settings_view_form
+msgid "Bank Reconciliation"
+msgstr ""
+
+#. module: account_accountant_ux
+#: model:ir.model,name:account_accountant_ux.model_bank_rec_widget
+msgid "Bank reconciliation widget for a single statement line"
+msgstr ""
+"Widget de conciliación bancaria para una sola línea del extracto de cuenta"
+
+#. module: account_accountant_ux
+#: model_terms:ir.ui.view,arch_db:account_accountant_ux.res_config_settings_view_form
+msgid ""
+"By default Odoo Follow up will open the debt per currency.\n"
+"                        If you set this option all the debt will be grouped on one section and using the company currency."
+msgstr ""
+"De forma predeterminada, el informe de seguimiento de Odoo abrirá la deuda "
+"por moneda. Si configura esta opción, toda la deuda se agrupará en una "
+"sección y utilizará la moneda de la compañía."
 
 #. module: account_accountant_ux
 #: model:ir.model,name:account_accountant_ux.model_account_change_lock_date
 msgid "Change Lock Date"
-msgstr "Cambiar Fecha de Bloqueo"
+msgstr "Cambiar fecha de bloqueo"
+
+#. module: account_accountant_ux
+#: model:ir.model,name:account_accountant_ux.model_res_company
+msgid "Companies"
+msgstr "Compañías"
 
 #. module: account_accountant_ux
 #: model:ir.model.fields,field_description:account_accountant_ux.field_account_change_lock_date__company_id
@@ -31,16 +75,149 @@ msgid "Company"
 msgstr "Compañía"
 
 #. module: account_accountant_ux
+#: model:ir.model,name:account_accountant_ux.model_res_config_settings
+msgid "Config Settings"
+msgstr "Ajustes de configuración"
+
+#. module: account_accountant_ux
+#: model:ir.model,name:account_accountant_ux.model_res_partner
+msgid "Contact"
+msgstr "Contacto"
+
+#. module: account_accountant_ux
+#: model_terms:ir.ui.view,arch_db:account_accountant_ux.res_partner_view_search
+msgid "Deuda a cobrar"
+msgstr ""
+
+#. module: account_accountant_ux
+#: model_terms:ir.ui.view,arch_db:account_accountant_ux.res_partner_view_search
+msgid "Deuda a pagar"
+msgstr ""
+
+#. module: account_accountant_ux
+#: model:ir.model.fields,field_description:account_accountant_ux.field_account_move_line__filter_amount
+msgid "Filter Amount"
+msgstr "Monto de Filtro"
+
+#. module: account_accountant_ux
+#: model:ir.model,name:account_accountant_ux.model_account_followup_report
+msgid "Follow-up Report"
+msgstr "Informe de seguimiento"
+
+#. module: account_accountant_ux
+#: model_terms:ir.ui.view,arch_db:account_accountant_ux.res_config_settings_view_form
+msgid ""
+"If you select this option, the bank reconciliation wizard will search for movement lines with the same amount \n"
+"                            as the selected statement line by default."
+msgstr ""
+
+#. module: account_accountant_ux
+#: model_terms:ir.ui.view,arch_db:account_accountant_ux.view_account_move_line_search_bank_rec_widget
+msgid "Igual Monto"
+msgstr ""
+
+#. module: account_accountant_ux
+#: model:ir.model,name:account_accountant_ux.model_account_journal
+msgid "Journal"
+msgstr "Diario"
+
+#. module: account_accountant_ux
+#: model:ir.model,name:account_accountant_ux.model_account_move
+msgid "Journal Entry"
+msgstr "Asiento contable"
+
+#. module: account_accountant_ux
+#: model:ir.model,name:account_accountant_ux.model_account_move_line
+msgid "Journal Item"
+msgstr "Apunte contable"
+
+#. module: account_accountant_ux
+#: model_terms:ir.ui.view,arch_db:account_accountant_ux.view_account_move_line_search_bank_rec_widget
+msgid "Monto aproximado"
+msgstr ""
+
+#. module: account_accountant_ux
+#: model_terms:ir.ui.view,arch_db:account_accountant_ux.view_account_move_line_search_bank_rec_widget
+msgid "Monto menor"
+msgstr ""
+
+#. module: account_accountant_ux
+#. odoo-python
+#: code:addons/account_accountant_ux/wizards/account_change_lock_date.py:0
+#, python-format
+msgid "Only Billing Administrators are allowed to change lock dates!"
+msgstr ""
+"Solo usuarios con permisos de Administrador de Facturación tienen permitido "
+"modificar fechas de bloqueo!"
+
+#. module: account_accountant_ux
 #: model_terms:ir.ui.view,arch_db:account_accountant_ux.view_partner_form
 msgid "Partner Ledger"
 msgstr "Libro Mayor"
 
 #. module: account_accountant_ux
+#: model:ir.actions.server,name:account_accountant_ux.action_partner_ledger
 #: model_terms:ir.ui.view,arch_db:account_accountant_ux.view_partner_form
 msgid "Partner Ledger Report"
 msgstr "Libro Mayor (informe)"
 
 #. module: account_accountant_ux
-#: model_terms:ir.ui.view,arch_db:account_accountant_ux.account_financial_html_report_form_view
-msgid "⇒ Create Action and Menu"
-msgstr "⇒ Crear Acción y Menu"
+#: model_terms:ir.ui.view,arch_db:account_accountant_ux.customer_statements_form_view
+msgid "Residual Amount (cc)"
+msgstr "Monto Residual (cc)"
+
+#. module: account_accountant_ux
+#. odoo-python
+#: code:addons/account_accountant_ux/models/account_followup_report.py:0
+#, python-format
+msgid "Total Due"
+msgstr "Total Adeudado"
+
+#. module: account_accountant_ux
+#. odoo-python
+#: code:addons/account_accountant_ux/models/account_followup_report.py:0
+#, python-format
+msgid "Total Overdue"
+msgstr "Total Vencido"
+
+#. module: account_accountant_ux
+#: model:ir.model.fields,field_description:account_accountant_ux.field_res_partner__debit
+#: model:ir.model.fields,field_description:account_accountant_ux.field_res_users__debit
+msgid "Total Payable"
+msgstr "Total por pagar"
+
+#. module: account_accountant_ux
+#: model:ir.model.fields,field_description:account_accountant_ux.field_res_partner__credit
+#: model:ir.model.fields,field_description:account_accountant_ux.field_res_users__credit
+msgid "Total Receivable"
+msgstr "Total por cobrar"
+
+#. module: account_accountant_ux
+#: model:ir.model.fields,help:account_accountant_ux.field_res_partner__credit
+#: model:ir.model.fields,help:account_accountant_ux.field_res_users__credit
+msgid "Total amount this customer owes you."
+msgstr "Importe total que el cliente le debe."
+
+#. module: account_accountant_ux
+#: model:ir.model.fields,help:account_accountant_ux.field_res_partner__debit
+#: model:ir.model.fields,help:account_accountant_ux.field_res_users__debit
+msgid "Total amount you have to pay to this vendor."
+msgstr "Importe total a pagar a este proveedor."
+
+#. module: account_accountant_ux
+#: model:ir.model.fields,field_description:account_accountant_ux.field_res_company__use_company_currency_on_followup
+#: model:ir.model.fields,field_description:account_accountant_ux.field_res_config_settings__use_company_currency_on_followup
+msgid "Use Company Currency On Followup"
+msgstr "Usar moneda de la compañía en Informes de Seguimiento"
+
+#. module: account_accountant_ux
+#: model:ir.model.fields,field_description:account_accountant_ux.field_res_config_settings__use_search_filter_amount
+msgid "Use Search Filter Amount"
+msgstr ""
+
+#. module: account_accountant_ux
+#. odoo-python
+#: code:addons/account_accountant_ux/wizards/account_change_lock_date.py:0
+#, python-format
+msgid "You cannot set a lock date in the future."
+msgstr "No es posible determinar una fecha de bloqueo futura."

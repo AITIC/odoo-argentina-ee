@@ -13,15 +13,8 @@ class AccountMoveLine(models.Model):
         help='Move where this tax has been settled',
         auto_join=True,
         copy=False,
+        index='btree_not_null'
     )
-
-    def _update_check(self):
-        res = super(AccountMoveLine, self)._update_check()
-        if self.mapped('tax_settlement_move_id'):
-            raise ValidationError(_(
-                'You cannot do this modification on a tax entry that has been '
-                'settled'))
-        return res
 
     def get_tax_settlement_journal(self):
         """
@@ -57,7 +50,7 @@ class AccountMoveLine(models.Model):
         Botón para el 1 a 1 que crea y postea el move
         """
         move = self.create_tax_settlement_entry()
-        move.post()
+        move.action_post()
         return move
 
     def create_tax_settlement_entry(self):
@@ -80,7 +73,7 @@ class AccountMoveLine(models.Model):
 
     @api.depends(
         'tax_repartition_line_id',
-        'tax_settlement_move_id.line_ids.reconciled',
+        'tax_settlement_move_id.line_ids.full_reconcile_id',
     )
     def _compute_tax_state(self):
         for rec in self:
@@ -89,7 +82,7 @@ class AccountMoveLine(models.Model):
             elif not rec.tax_settlement_move_id:
                 state = 'to_settle'
             elif all(x.reconciled for x in rec.tax_settlement_move_id.line_ids.filtered(
-                    lambda x: x.account_id.user_type_id.type in ('receivable', 'payable'))):
+                    lambda x: x.account_id.account_type in ('asset_receivable', 'liability_payable'))):
                 state = 'paid'
             else:
                 state = 'to_pay'
@@ -110,20 +103,22 @@ class AccountMoveLine(models.Model):
     def action_pay_tax_settlement(self):
         self.ensure_one()
         open_move_line_ids = self.tax_settlement_move_id.line_ids.filtered(
-            lambda r: not r.reconciled and r.account_id.internal_type in (
-                'payable', 'receivable'))
+            lambda r: not r.reconciled and r.account_id.account_type in ('asset_receivable', 'liability_payable'))
         return {
             'name': _('Register Payment'),
-            'view_type': 'form',
             'view_mode': 'form',
             'res_model': 'account.payment.group',
-            'view_id': False,
             'target': 'current',
             'type': 'ir.actions.act_window',
             'context': {
-                'to_pay_move_line_ids': open_move_line_ids.ids,
-                'pop_up': True,
+                'default_partner_type': 'supplier',
+                'default_partner_id': open_move_line_ids.mapped('partner_id').id,
+                'default_to_pay_move_line_ids': open_move_line_ids.ids,
+                # We set this because if became from other view and in the context has 'create=False'
+                # you can't crate payment lines (for ej: subscription)
+                'create': True,
                 'default_company_id': self.company_id.id,
+                'pop_up': True,
                 # por defecto, en pago de retenciones, no hacemos double
                 # validation
                 'force_simple': True,
@@ -139,6 +134,6 @@ class AccountMoveLine(models.Model):
         """
         if not journal:
             journal = self.get_tax_settlement_journal()
-        res = self.env['download_files_wizard'].action_get_files(
+        res = self.env['res.download_files_wizard'].action_get_files(
             journal.get_tax_settlement_files_values(self))
         return res
