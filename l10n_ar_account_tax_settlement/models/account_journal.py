@@ -869,8 +869,11 @@ class AccountJournal(models.Model):
                 content.append('2')
 
             # 4 Número del comprobante
-            content.append('%012d' % int(
-                re.sub('[^0-9]', '', line.payment_id.name or '')))
+            if payment.payment_type == 'outbound':
+                content.append('0')
+            else:
+                content.append('%012d' % int(
+                 re.sub('[^0-9]', '', line.payment_id.name or '')))
 
             # 5 Cuit del contribuyene
             content.append(line.partner_id.ensure_vat())
@@ -916,12 +919,31 @@ class AccountJournal(models.Model):
                 content.append(fields.Date.from_string(line.date).strftime('%d/%m/%Y'))
 
                 # 14 Número de Constancia - Numeric(14)
-                content.append('%014s' % int(re.sub('[^0-9]', '', line.withholding_id.name or '0')[:14]))
+                content.append('%014d' % int(re.sub('[^0-9]', '', line.withholding_id.name or '0')[:14]))
 
                 # 15 Número de Constancia original (sólo para las Anulaciones –ver códigos por jur-)  - Numeric(14)
                 original_invoice = line.move_id._found_related_invoice() or line.move_id
                 content.append('%014d' % int(re.sub('[^0-9]', '', original_invoice.document_number or ''))
                                if internal_type == 'credit_note' else '%014d' % 0)
+            else:
+                # 12 Tipo de Operación (1-Efectuada, 2-Anulada, 3-Omitida)
+                content.append('2' if internal_type == 'credit_note' else '1')
+
+                # 13 Fecha de Emisión de Constancia (en formato dd/mm/aaaa)
+                content.append(fields.Date.from_string(line.date).strftime('%d/%m/%Y'))
+
+                # 14 Número de Constancia - Numeric(14)
+                content.append('%014d' % int(re.sub('[^0-9]', '', line.withholding_id.name or '0')[:14]))
+
+                # 15 Número de Constancia original (sólo para las Anulaciones –ver códigos por jur-)  - Numeric(14)
+                original_invoice = line.move_id._found_related_invoice() or line.move_id
+                if payment.payment_type == 'outbound':
+                    content.append('%014d' % 0)
+                else:
+                    content.append('%014d' % int(re.sub('[^0-9]', '', original_invoice.document_number or ''))
+                               if internal_type == 'credit_note' else '%014d' % 0)    
+
+
 
             ret += ','.join(content) + '\r\n'
             line_nbr += 1
