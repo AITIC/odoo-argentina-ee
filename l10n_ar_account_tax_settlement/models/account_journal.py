@@ -869,20 +869,23 @@ class AccountJournal(models.Model):
                 content.append('2')
 
             # 4 Número del comprobante
-            if payment.payment_type == 'outbound':
+            if payment.payment_type == 'outbound' and line.tax_line_id.jurisdiction_code in ['914']:
                 content.append('0')
             else:
-                content.append('%012d' % int(
-                 re.sub('[^0-9]', '', line.payment_id.name or '')))
+                if line.tax_line_id.jurisdiction_code in ['914']:
+                    content.append('0')
+                else:
+                    content.append('%012d' % int(
+                        re.sub('[^0-9]', '', line.payment_id.name or '')))
 
-            # 5 Cuit del contribuyene
+            # 5 Cuit del contribuyente
             content.append(line.partner_id.ensure_vat())
 
-            # 6 Fecha de la percepción
+            # 6 Fecha de la retencion
             content.append(
                 fields.Date.from_string(line.date).strftime('%d/%m/%Y'))
 
-            # 7 Monto sujeto a percepción
+            # 7 Monto sujeto a retencion
             content.append(format_amount(
                 line.withholding_id.withholdable_base_amount, 12, 2, '.'))
 
@@ -893,7 +896,7 @@ class AccountJournal(models.Model):
             # 9 Monto retenido
             content.append(format_amount(-line.balance, 12, 2, '.'))
 
-            # 10 Tipo de Régimen de Percepción
+            # 10 Tipo de Régimen de Retención
             # (código correspondiente según tabla definida por la jurisdicción)
             if not alicuot_line.regimen_retencion:
                 raise ValidationError(_(
@@ -925,25 +928,6 @@ class AccountJournal(models.Model):
                 original_invoice = line.move_id._found_related_invoice() or line.move_id
                 content.append('%014d' % int(re.sub('[^0-9]', '', original_invoice.document_number or ''))
                                if internal_type == 'credit_note' else '%014d' % 0)
-            else:
-                # 12 Tipo de Operación (1-Efectuada, 2-Anulada, 3-Omitida)
-                content.append('2' if internal_type == 'credit_note' else '1')
-
-                # 13 Fecha de Emisión de Constancia (en formato dd/mm/aaaa)
-                content.append(fields.Date.from_string(line.date).strftime('%d/%m/%Y'))
-
-                # 14 Número de Constancia - Numeric(14)
-                content.append('%014d' % int(re.sub('[^0-9]', '', line.withholding_id.name or '0')[:14]))
-
-                # 15 Número de Constancia original (sólo para las Anulaciones –ver códigos por jur-)  - Numeric(14)
-                original_invoice = line.move_id._found_related_invoice() or line.move_id
-                if payment.payment_type == 'outbound':
-                    content.append('%014d' % 0)
-                else:
-                    content.append('%014d' % int(re.sub('[^0-9]', '', original_invoice.document_number or ''))
-                               if internal_type == 'credit_note' else '%014d' % 0)    
-
-
 
             ret += ','.join(content) + '\r\n'
             line_nbr += 1
