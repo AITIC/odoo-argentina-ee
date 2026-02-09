@@ -40,6 +40,8 @@ Especificación de archivos:
 * AGIP:  https://www.agip.gob.ar/agentes/agentes-de-recaudacion/ib-agentes-recaudacion/aplicativo-arciba/aclaraciones-sobre-las-adecuaciones-al-aplicativo-e-arciba- (Version 3.0 aplicada el 07-05-2024)
    * Notas de credito  https://www.agip.gob.ar/filemanager/source/Agentes/De%20Recaudacion/Ingresos%20brutos/NC.PDF
    * Retencion y percepciones  https://www.agip.gob.ar/filemanager/source/Agentes/De%20Recaudacion/Ingresos%20brutos/RP.PDF
+   * IMPORTANTE: Desde v17.0.1.7.3 (Feb 2026) todos los montos se reportan como valores absolutos según especificación AGIP v3.0
+   * Los archivos TXT ahora cumplen estrictamente con los requisitos de campos numéricos (sin valores negativos)
 
 * MENDOZA https://www.atm.mendoza.gov.ar/portalatm/ModificarParametros?tipo=descargarUrl&url=/zoneBottom/serviciosDescargas/sarepe/files/SAREPE.pdf
 

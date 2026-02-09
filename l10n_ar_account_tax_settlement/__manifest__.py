@@ -19,10 +19,11 @@
 ##############################################################################
 {
     'name': 'Tax Settlements For Argentina',
-    'version': "17.0.1.7.2",
+    'version': "17.0.1.7.3",
     'category': 'Accounting',
     'website': 'www.adhoc.com.ar',
     'license': 'LGPL-3',
+    'summary': 'Generación de archivos TXT para liquidación de impuestos en Argentina (AGIP, ARBA, SICORE, etc.)',
     'images': [
     ],
     'depends': [

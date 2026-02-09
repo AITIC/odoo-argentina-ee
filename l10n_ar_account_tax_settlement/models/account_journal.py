@@ -443,6 +443,13 @@ class AccountJournal(models.Model):
             partner = line.partner_id
             internal_type = line.l10n_latam_document_type_id.internal_type
 
+            if not tax:
+                raise ValidationError(_(
+                    'La línea de apunte contable "%s" (id %s) no tiene impuesto '
+                    'asociado (tax_line_id). Verifique que todas las líneas '
+                    'seleccionadas correspondan a impuestos de AGIP.') % (
+                        line.display_name, line.id))
+
             if not partner.vat:
                 raise ValidationError(_(
                     'El partner "%s" (id %s) no tiene número de identificación '
@@ -485,7 +492,8 @@ class AccountJournal(models.Model):
                 # si, lo que se espera es el importe base, ya que dice que
                 # este, multiplicado por la alícuota, debe ser igual al importe
                 # a retener/percibir
-                taxable_amount = line.tax_base_amount
+                # AGIP requiere valores absolutos
+                taxable_amount = abs(line.tax_base_amount)
                 content += format_amount(taxable_amount, 16, 2, ',')
 
                 # 5 - Nro. certificado propio
@@ -539,7 +547,8 @@ class AccountJournal(models.Model):
                 # se calcule aplicando la alícuota sobre la base imponible en la moneda de la compañía
                 if line.currency_id and line.currency_id != line.company_id.currency_id:
                     ret_perc_applied = float_round((taxable_amount*alicuot/100), precision_digits=2)
-                content += format_amount((line.balance if not ret_perc_applied else ret_perc_applied), 16, 2, ',')
+                # AGIP requiere valores absolutos
+                content += format_amount(abs(line.balance if not ret_perc_applied else ret_perc_applied), 16, 2, ',')
 
                 # 13 - Alícuota
                 content += format_amount(alicuot, 5, 2, ',')
@@ -586,9 +595,9 @@ class AccountJournal(models.Model):
             if payment:
                 # solo en comprobantes A, M segun especificacion
                 vat_amount = 0.0
-                total_amount = float_round(payment.amount_total_in_currency_signed, precision_digits=2)
+                total_amount = float_round(abs(payment.amount_total_in_currency_signed), precision_digits=2)
                 # es lo mismo que payment_group.matched_amount_untaxed
-                taxable_amount = float_round(line.withholding_id.withholdable_base_amount, precision_digits=2)
+                taxable_amount = float_round(abs(line.withholding_id.withholdable_base_amount), precision_digits=2)
 
                 # lo sacamos por diferencia
                 other_taxes_amount = company_currency.round(
@@ -597,16 +606,17 @@ class AccountJournal(models.Model):
                 amounts = line.move_id._l10n_ar_get_amounts(company_currency=True)
                 # segun especificacion el iva solo se reporta para estos
                 if line.l10n_latam_document_type_id.l10n_ar_letter in ['A', 'M']:
-                    vat_amount = amounts['vat_amount']
+                    # AGIP requiere valores absolutos
+                    vat_amount = abs(amounts['vat_amount'])
                 else:
                     vat_amount = 0.0
 
-                total_amount = (1 if line.move_id.is_inbound() else -1) * line.move_id.amount_total_signed
+                total_amount = abs((1 if line.move_id.is_inbound() else -1) * line.move_id.amount_total_signed)
 
                 # por si se olvidaron de poner agip en una linea de factura
                 # la base la sacamos desde las lineas de impuesto
                 # taxable_amount = line.move_id.cc_amount_untaxed
-                taxable_amount = line.tax_base_amount
+                taxable_amount = abs(line.tax_base_amount)
 
                 # tambien lo sacamos por diferencia para no tener error (por el
                 # calculo trucado de taxable_amount por ejemplo) y
@@ -618,7 +628,8 @@ class AccountJournal(models.Model):
                 raise ValidationError(_('El impuesto no está asociado'))
 
             # 8 - Monto del comprobante
-            content += format_amount(total_amount, 16, 2, ',')
+            # AGIP requiere valores absolutos
+            content += format_amount(abs(total_amount), 16, 2, ',')
 
             # 9 - Nro de certificado propio
             content += (line.withholding_id.name or '').rjust(16, ' ')
@@ -677,13 +688,16 @@ class AccountJournal(models.Model):
             content += '{:30.30}'.format(partner.name)
 
             # 16 - Importe otros conceptos
-            content += format_amount(other_taxes_amount, 16, 2, ',')
+            # AGIP no acepta valores negativos, se debe reportar el valor absoluto
+            content += format_amount(abs(other_taxes_amount), 16, 2, ',')
 
             # 17 - Importe IVA
-            content += format_amount(vat_amount, 16, 2, ',')
+            # AGIP requiere valores absolutos
+            content += format_amount(abs(vat_amount), 16, 2, ',')
 
             # 18 - Monto Sujeto a Retención/ Percepción
-            content += format_amount(taxable_amount, 16, 2, ',')
+            # AGIP requiere valores absolutos
+            content += format_amount(abs(taxable_amount), 16, 2, ',')
 
             # 19 - Alícuota
             content += format_amount(alicuot, 5, 2, ',')
@@ -693,11 +707,13 @@ class AccountJournal(models.Model):
             # si la línea tiene moneda diferente de la moneda de la compañía queremos que la ret/perc
             # se calcule aplicando la alícuota sobre la base imponible en la moneda de la compañía
             if line.currency_id and line.currency_id != line.company_id.currency_id:
-                ret_perc_applied = float_round((taxable_amount*alicuot/100), precision_digits=2)
-            content += format_amount((-line.balance if not ret_perc_applied else ret_perc_applied), 16, 2, ',')
+                ret_perc_applied = float_round((abs(taxable_amount)*alicuot/100), precision_digits=2)
+            # AGIP requiere valores absolutos
+            content += format_amount(abs(-line.balance if not ret_perc_applied else ret_perc_applied), 16, 2, ',')
 
             # 21 - Monto Total Retenido/Percibido
-            content += format_amount((-line.balance if not ret_perc_applied else ret_perc_applied), 16, 2, ',')
+            # AGIP requiere valores absolutos
+            content += format_amount(abs(-line.balance if not ret_perc_applied else ret_perc_applied), 16, 2, ',')
 
             # # 22 - Aceptacion
             content += ' '
