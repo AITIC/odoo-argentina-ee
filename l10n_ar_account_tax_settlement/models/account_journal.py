@@ -476,9 +476,10 @@ class AccountJournal(models.Model):
 
             # notas de credito
             if internal_type == 'credit_note':
-                # 2 - Nro. Nota de crédito
-                content += '%012d' % int(
-                    re.sub('[^0-9]', '', move.l10n_latam_document_number or ''))
+                # 2 - Nro. Nota de crédito (12 dígitos total)
+                # Formato: quitar guiones, rellenar con ceros a 12 dígitos, tomar primeros 12
+                nc_number = (move.l10n_latam_document_number or '').replace('-', '')
+                content += nc_number.zfill(12)[:12]
 
                 # 3 - Fecha Nota de crédito
                 content += fields.Date.from_string(
@@ -518,7 +519,8 @@ class AccountJournal(models.Model):
                 #Identificamos si el comprobante de origen es una Factura de credito MiPyMEs sino lo 
                 # tratamos como una factura normal
                 # NOTA: Esto solo aplica para el calculo de Percepciones
-                content += '10' if or_inv.l10n_latam_document_type_id.code in ['201', '206', '211'] else '01'
+                # Códigos FCE completos: A=201,202,203 B=206,207,208 C=211,212,213
+                content += '10' if or_inv.l10n_latam_document_type_id.code in ['201', '202', '203', '206', '207', '208', '211', '212', '213'] else '01'
                 
                 # 7 - Letra del Comprobante
                 if payment:
@@ -527,8 +529,9 @@ class AccountJournal(models.Model):
                     content += or_inv.l10n_latam_document_type_id.l10n_ar_letter
 
                 # 8 - Nro de comprobante (original)
-                content += '%016d' % int(
-                    re.sub('[^0-9]', '', or_inv.l10n_latam_document_number or ''))
+                # Formato: quitar guiones, rellenar con ceros a 16 dígitos, tomar primeros 16
+                original_voucher = (or_inv.l10n_latam_document_number or '').replace('-', '')
+                content += original_voucher.zfill(16)[:16]
 
                 # 9 - Nro de documento del Retenido
                 content += str(partner._get_id_number_sanitize())
@@ -558,6 +561,7 @@ class AccountJournal(models.Model):
                 credito += content
                 continue
 
+            # NOTA: content ya contiene el Tipo de Operación ('1' o '2') desde la línea 470/474
             # 2 - Código de Norma
             # por ahora solo padron regimenes generales
             content += '029'
@@ -567,7 +571,8 @@ class AccountJournal(models.Model):
 
             # 4 - Tipo de comprobante origen de la retención
             if internal_type == 'invoice':
-                content += '10' if line.move_id.l10n_latam_document_type_id.code in ['201', '206', '211'] else '01'
+                # Códigos FCE completos: A=201,202,203 B=206,207,208 C=211,212,213
+                content += '10' if line.move_id.l10n_latam_document_type_id.code in ['201', '202', '203', '206', '207', '208', '211', '212', '213'] else '01'
             elif internal_type == 'debit_note':
                 if es_percepcion:
                     content += '09'
@@ -585,8 +590,9 @@ class AccountJournal(models.Model):
                 content += line.l10n_latam_document_type_id.l10n_ar_letter if internal_type == 'invoice' else ' '
 
             # 6 - Nro de comprobante
-            content += '%016d' % int(
-                re.sub('[^0-9]', '', move.l10n_latam_document_number or ''))
+            # Formato: quitar guiones, rellenar con ceros a 16 dígitos, tomar primeros 16
+            voucher_number = (move.l10n_latam_document_number or '').replace('-', '')
+            content += voucher_number.zfill(16)[:16]
 
             # 7 - Fecha del comprobante
             content += fields.Date.from_string(move.date).strftime('%d/%m/%Y')
@@ -611,16 +617,19 @@ class AccountJournal(models.Model):
                 else:
                     vat_amount = 0.0
 
-                total_amount = abs((1 if line.move_id.is_inbound() else -1) * line.move_id.amount_total_signed)
+                # El monto del comprobante NO debe incluir la percepción IIBB que estamos reportando
+                # porque la percepción se aplica SOBRE el comprobante, no es parte del comprobante
+                total_amount_with_perception = abs((1 if line.move_id.is_inbound() else -1) * line.move_id.amount_total_signed)
+                perception_amount = abs(line.balance)
+                total_amount = total_amount_with_perception - perception_amount
 
                 # por si se olvidaron de poner agip en una linea de factura
                 # la base la sacamos desde las lineas de impuesto
                 # taxable_amount = line.move_id.cc_amount_untaxed
                 taxable_amount = abs(line.tax_base_amount)
 
-                # tambien lo sacamos por diferencia para no tener error (por el
-                # calculo trucado de taxable_amount por ejemplo) y
-                # ademas porque el iva solo se reporta si es factura A, M
+                # Otros conceptos = total del comprobante (sin percepción) - base - IVA
+                # Para una factura simple sin otros impuestos, esto debería dar 0
                 other_taxes_amount = company_currency.round(
                     total_amount - taxable_amount - vat_amount)
                 # other_taxes_amount = line.move_id.cc_other_taxes_amount
@@ -632,7 +641,23 @@ class AccountJournal(models.Model):
             content += format_amount(abs(total_amount), 16, 2, ',')
 
             # 9 - Nro de certificado propio
-            content += (line.withholding_id.name or '').rjust(16, ' ')
+            # Para percepciones (facturas): va vacío
+            # Para retenciones (pagos): se construye como sucursal + año + número
+            if payment and line.withholding_id:
+                # Construir certificado para retenciones
+                withholding_number = line.withholding_id.name or ''
+                if '-' in withholding_number:
+                    parts = withholding_number.split('-')
+                    sucursal = parts[0]
+                    numero = parts[1] if len(parts) > 1 else ''
+                else:
+                    sucursal = '0001'
+                    numero = withholding_number
+                certificate = sucursal + fields.Date.from_string(line.date).strftime('%Y') + numero
+                content += certificate.ljust(16)[:16]
+            else:
+                # Percepciones: 16 espacios
+                content += ''.ljust(16)
 
             # 10 - Tipo de documento del Retenido
             # vat
@@ -644,7 +669,8 @@ class AccountJournal(models.Model):
             content += doc_type_mapping[partner.l10n_latam_identification_type_id.name]
 
             # 11 - Nro de documento del Retenido
-            content += str(partner._get_id_number_sanitize())
+            # CUIT sin guiones, 11 dígitos con padding de ceros a la izquierda
+            content += (partner.l10n_ar_vat or '').replace('-', '').zfill(11)[:11]
 
             # 12 - Situación IB del Retenido
             # 1: Local 2: Convenio Multilateral
@@ -655,15 +681,23 @@ class AccountJournal(models.Model):
                     '"%s" (id: %s)') % (partner.name, partner.id))
 
             # ahora se reportaria para cualquier inscripto el numero de cuit
+            # AGIP: 1=Local, 2=Conv.Multilateral, 4=No inscripto, 5=Reg.Simplificado
             gross_income_mapping = {
-                'local': '5', 'multilateral': '2', 'exempt': '4'}
+                'local': '1', 'multilateral': '2', 'exempt': '4'}
             content += gross_income_mapping[partner.l10n_ar_gross_income_type]
 
             # 13 - Nro Inscripción IB del Retenido
+            # Si es exento: 11 ceros
+            # Si es multilateral: CUIT sin guiones (11 dígitos)
+            # Si es local: número de inscripción de IIBB (11 dígitos)
             if partner.l10n_ar_gross_income_type == 'exempt':
                 content += '00000000000'
+            elif partner.l10n_ar_gross_income_type == 'multilateral':
+                # Para multilateral se usa el CUIT sin guiones
+                content += (partner.l10n_ar_vat or '').replace('-', '').zfill(11)[:11]
             else:
-                content += partner.ensure_vat()
+                # Para local se usa el número de inscripción de IIBB
+                content += (partner.l10n_ar_gross_income_number or '').replace('-', '').zfill(11)[:11]
 
             # 14 - Situación frente al IVA del Retenido
             # 1 - Responsable Inscripto
@@ -688,12 +722,20 @@ class AccountJournal(models.Model):
             content += '{:30.30}'.format(partner.name)
 
             # 16 - Importe otros conceptos
-            # AGIP no acepta valores negativos, se debe reportar el valor absoluto
-            content += format_amount(abs(other_taxes_amount), 16, 2, ',')
+            # AGIP: Solo para percepciones (tipo 2) Y letras A/M, para retenciones (tipo 1) va en ceros
+            if es_percepcion and (not line.move_id or line.l10n_latam_document_type_id.l10n_ar_letter in ['A', 'M']):
+                # AGIP no acepta valores negativos, se debe reportar el valor absoluto
+                content += format_amount(abs(other_taxes_amount), 16, 2, ',')
+            else:
+                content += format_amount(0.0, 16, 2, ',')
 
             # 17 - Importe IVA
-            # AGIP requiere valores absolutos
-            content += format_amount(abs(vat_amount), 16, 2, ',')
+            # AGIP: Solo para percepciones (tipo 2) Y letras A/M, para retenciones (tipo 1) va en ceros
+            if es_percepcion and (not line.move_id or line.l10n_latam_document_type_id.l10n_ar_letter in ['A', 'M']):
+                # AGIP requiere valores absolutos
+                content += format_amount(abs(vat_amount), 16, 2, ',')
+            else:
+                content += format_amount(0.0, 16, 2, ',')
 
             # 18 - Monto Sujeto a Retención/ Percepción
             # AGIP requiere valores absolutos
