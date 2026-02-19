@@ -623,12 +623,11 @@ class AccountJournal(models.Model):
                 perception_amount = abs(line.balance)
                 total_amount = total_amount_with_perception - perception_amount
 
-                # por si se olvidaron de poner agip en una linea de factura
-                # la base la sacamos desde las lineas de impuesto
-                # taxable_amount = line.move_id.cc_amount_untaxed
-                taxable_amount = abs(line.tax_base_amount)
+                # Según AGIP: Campo 18 (Monto Sujeto a Retención/Percepción) = Campo 8 - Campo 17 - Campo 16
+                # Por lo tanto, Campo 18 debe ser el amount_untaxed de la factura (base gravada total)
+                taxable_amount = abs((1 if line.move_id.is_inbound() else -1) * line.move_id.amount_untaxed_signed)
 
-                # Otros conceptos = total del comprobante (sin percepción) - base - IVA
+                # Otros conceptos = total del comprobante (sin percepción) - base gravada - IVA
                 # Para una factura simple sin otros impuestos, esto debería dar 0
                 other_taxes_amount = company_currency.round(
                     total_amount - taxable_amount - vat_amount)
