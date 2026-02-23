@@ -599,15 +599,16 @@ class AccountJournal(models.Model):
 
             # obtenemos montos de los comprobantes
             if payment:
-                # solo en comprobantes A, M segun especificacion
+                # Para retenciones (pagos), según AGIP:
+                # - Campo 8 (Monto del comprobante) = base imponible de la retención
+                # - Campo 16 (Importe otros conceptos) = 0
+                # - Campo 17 (Importe IVA) = 0
+                # - Campo 18 (Monto Sujeto) = base imponible de la retención
                 vat_amount = 0.0
-                total_amount = float_round(abs(payment.amount_total_in_currency_signed), precision_digits=2)
-                # es lo mismo que payment_group.matched_amount_untaxed
+                other_taxes_amount = 0.0
+                # Para retenciones usamos withholding_base_amount tanto para total como para taxable
+                total_amount = float_round(abs(line.withholding_id.withholdable_base_amount), precision_digits=2)
                 taxable_amount = float_round(abs(line.withholding_id.withholdable_base_amount), precision_digits=2)
-
-                # lo sacamos por diferencia
-                other_taxes_amount = company_currency.round(
-                    total_amount - taxable_amount - vat_amount)
             elif line.move_id.is_invoice():
                 amounts = line.move_id._l10n_ar_get_amounts(company_currency=True)
                 # segun especificacion el iva solo se reporta para estos
