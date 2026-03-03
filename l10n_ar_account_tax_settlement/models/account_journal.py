@@ -43,6 +43,31 @@ def get_pos_and_number(full_number):
         return re.sub('[^0-9]', '', args[0]), re.sub('[^0-9]', '', ''.join(args[1:]))
 
 
+def _get_agip_op_voucher_number(document_number):
+    """
+    Extrae el número de orden de pago para el campo 6 del TXT AGIP.
+    Formatos soportados:
+    - COMP.PAGO/2026/030 o similar: toma el último segmento (030), últimos 4 dígitos
+    - OP-X 0001-00000001: toma la parte después del espacio (numérica)
+    - 0001-00000001: formato estándar punto de venta-número
+    """
+    if not document_number:
+        return '0'
+    doc = (document_number or '').strip()
+    # Formato COMP.PAGO/YYYY/XXX - tomar último segmento después de /, últimos 4 dígitos
+    if '/' in doc:
+        parts = doc.split('/')
+        last_part = parts[-1] if parts else ''
+        digits = re.sub(r'[^0-9]', '', last_part)[-4:]
+        return digits or '0'
+    # Formato OP-X XXXXXXXX - tomar parte después del espacio (solo numérico)
+    if ' ' in doc:
+        doc = doc.split(' ', 1)[-1]
+    # Extraer solo dígitos
+    digits = re.sub(r'[^0-9]', '', doc)
+    return digits or '0'
+
+
 class AccountJournal(models.Model):
     _inherit = 'account.journal'
 
@@ -582,16 +607,27 @@ class AccountJournal(models.Model):
                 # orden de pago
                 content += '03'
 
-            # 5 - Letra del Comprobante
-            # segun vemos en los archivos de ejemplo solo en percepciones
+            # 5 - Letra del Comprobante (Largo: 1)
+            # Especificación AGIP: para Orden de Pago (03) = 1 dígito en blanco
+            # Para percepciones en facturas: letra del comprobante (A, B, C, M)
             if payment:
                 content += ' '
             else:
                 content += line.l10n_latam_document_type_id.l10n_ar_letter if internal_type == 'invoice' else ' '
 
-            # 6 - Nro de comprobante
-            # Formato: quitar guiones, rellenar con ceros a 16 dígitos, tomar primeros 16
-            voucher_number = (move.l10n_latam_document_number or '').replace('-', '')
+            # 6 - Nro de comprobante (Tipo: Número, Largo: 16, Validación: Mayor a 0)
+            # Para orden de pago: extraer solo dígitos (COMP.PAGO/2026/XXX -> últimos 4,
+            # OP-X 0001-00000001 -> parte numérica después del espacio)
+            # Para facturas: quitar guiones, rellenar con ceros a 16 dígitos
+            if payment:
+                voucher_number = _get_agip_op_voucher_number(move.l10n_latam_document_number)
+                if not voucher_number or int(voucher_number) == 0:
+                    raise ValidationError(_(
+                        'No se pudo extraer un número válido de orden de pago del comprobante "%s". '
+                        'El campo 6 requiere un número mayor a 0. Formato esperado: COMP.PAGO/2026/XXX '
+                        'o OP-X 0001-00000001') % (move.l10n_latam_document_number or move.name))
+            else:
+                voucher_number = (move.l10n_latam_document_number or '').replace('-', '')
             content += voucher_number.zfill(16)[:16]
 
             # 7 - Fecha del comprobante
@@ -641,23 +677,10 @@ class AccountJournal(models.Model):
             content += format_amount(abs(total_amount), 16, 2, ',')
 
             # 9 - Nro de certificado propio
-            # Para percepciones (facturas): va vacío
-            # Para retenciones (pagos): se construye como sucursal + año + número
-            if payment and line.withholding_id:
-                # Construir certificado para retenciones
-                withholding_number = line.withholding_id.name or ''
-                if '-' in withholding_number:
-                    parts = withholding_number.split('-')
-                    sucursal = parts[0]
-                    numero = parts[1] if len(parts) > 1 else ''
-                else:
-                    sucursal = '0001'
-                    numero = withholding_number
-                certificate = sucursal + fields.Date.from_string(line.date).strftime('%Y') + numero
-                content += certificate.ljust(16)[:16]
-            else:
-                # Percepciones: 16 espacios
-                content += ''.ljust(16)
+            # AGIP: Para retenciones (pagos) NO se debe incluir el número de certificado,
+            # va vacío (16 espacios). Solo percepciones en facturas podrían llevarlo,
+            # por ahora siempre vacío según especificación.
+            content += ''.ljust(16)
 
             # 10 - Tipo de documento del Retenido
             # vat
