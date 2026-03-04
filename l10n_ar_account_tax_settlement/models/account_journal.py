@@ -768,8 +768,25 @@ class AccountJournal(models.Model):
                     internal_type == 'credit_note' and 'C' or
                     internal_type == 'debit_note' and 'D' or 'R')
                 content += line.l10n_latam_document_type_id.l10n_ar_letter
+            
+            # Fix: Normalizar documento cuando falta l10n_latam_document_type_id
+            document_number = move.l10n_latam_document_number or move.name or ''
+            normalized_document_number = document_number
+            
+            if document_number and '-' in document_number:
+                parts = document_number.split('-')
+                if len(parts) > 2:
+                    numeric_parts = []
+                    for part in parts:
+                        digits = re.sub(r'\D', '', part)
+                        if digits:
+                            numeric_parts.append(digits)
+                    if len(numeric_parts) >= 2:
+                        normalized_document_number = f"{numeric_parts[-2]}-{numeric_parts[-1]}"
+            
+            document_type_code = move.l10n_latam_document_type_id.code if move.l10n_latam_document_type_id else None
             document_parts = move._l10n_ar_get_document_number_parts(
-                move.l10n_latam_document_number, move.l10n_latam_document_type_id.code)
+                normalized_document_number, document_type_code)
             # si el punto de venta es de 5 digitos no encontramos doc
             # que diga como proceder, tomamos los ultimos 4 digitos
             pto_venta = "{:0>4d}".format(document_parts['point_of_sale'])[-4:]
@@ -1590,8 +1607,25 @@ class AccountJournal(models.Model):
                     internal_type == 'debit_note' and 'D' or 'R')
                 # Letra Comprobante (long 1, desde 25 hasta 25. Valores A,B,C, o “ ” (blanco)).
                 content += line.l10n_latam_document_type_id.l10n_ar_letter
+            
+            # Fix: Normalizar documento cuando falta l10n_latam_document_type_id
+            document_number = move.l10n_latam_document_number or move.name or ''
+            normalized_document_number = document_number
+            
+            if document_number and '-' in document_number:
+                parts = document_number.split('-')
+                if len(parts) > 2:
+                    numeric_parts = []
+                    for part in parts:
+                        digits = re.sub(r'\D', '', part)
+                        if digits:
+                            numeric_parts.append(digits)
+                    if len(numeric_parts) >= 2:
+                        normalized_document_number = f"{numeric_parts[-2]}-{numeric_parts[-1]}"
+            
+            document_type_code = move.l10n_latam_document_type_id.code if move.l10n_latam_document_type_id else None
             document_parts = move._l10n_ar_get_document_number_parts(
-                move.l10n_latam_document_number, move.l10n_latam_document_type_id.code)
+                normalized_document_number, document_type_code)
             pto_venta = "{:0>5d}".format(document_parts['point_of_sale'])[-5:]
             nro_documento = "{:0>8d}".format(document_parts['invoice_number'])[-8:]
             # Numero Sucursal (long 5, desde 31 hasta 36)
