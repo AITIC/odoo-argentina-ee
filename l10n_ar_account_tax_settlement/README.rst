@@ -25,7 +25,9 @@ Especificación de archivos:
 
 * SIFERE en xml web?: http://www.comarb.gov.ar/descargar/faqs/sifere_web/importacion_xml_sifereweb.pdf
 
-* ARBA: https://www.arba.gov.ar/Apartados/Agentes/PresentacionDDJJ.asp?lugar=P?apartado=AGENTES
+* ARBA: 
+   * https://www.arba.gov.ar/Apartados/Agentes/PresentacionDDJJ.asp?lugar=P?apartado=AGENTES
+   * TXT Webservice (A122R): https://web.arba.gov.ar/Instructivos-y-Marco-Normativo-A-122R (ese enlace se obtiene de https://web.arba.gov.ar/agentes#presentacion-de-ddjj , luego hay que ir a la sección "Comprobantes de Retención (A-122R) Nuevo" y hacer click en "Instructivo y Marco Normativo"). Vigente desde 01/03/2026.
 
 * AGIP: https://www.agip.gob.ar/filemanager/source/Agentes/DocTecnicoImpoOperacionesDise%C3%B1odeRegistro.pdf y https://www.agip.gob.ar/agentes/agentes-de-recaudacion/ib-agentes-recaudacion/aplicativo-arciba/ag-rec-arciba-codigo-de-normas
 
@@ -85,10 +87,3 @@ Maintainer
 This module is maintained by the |company|.
 
 To contribute to this module, please visit https://www.adhoc.com.ar.
-
-Changelog
-=========
-
-15.0.1.7.1
-----------
-* Fix: Normalizar documento cuando falta l10n_latam_document_type_id
