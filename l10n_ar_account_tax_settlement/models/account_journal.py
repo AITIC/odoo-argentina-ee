@@ -506,7 +506,7 @@ class AccountJournal(models.Model):
                 # 2 - Nro. Nota de crédito (12 dígitos total)
                 # Formato: quitar guiones, rellenar con ceros a 12 dígitos, tomar primeros 12
                 nc_number = (move.l10n_latam_document_number or '').replace('-', '')
-                content += nc_number.zfill(12)[:12]
+                content += nc_number[-12:].zfill(12)
 
                 # 3 - Fecha Nota de crédito
                 content += fields.Date.from_string(
@@ -558,7 +558,7 @@ class AccountJournal(models.Model):
                 # 8 - Nro de comprobante (original)
                 # Formato: quitar guiones, rellenar con ceros a 16 dígitos, tomar primeros 16
                 original_voucher = (or_inv.l10n_latam_document_number or '').replace('-', '')
-                content += original_voucher.zfill(16)[:16]
+                content += original_voucher[-16:].zfill(16)
 
                 # 9 - Nro de documento del Retenido
                 content += str(partner._get_id_number_sanitize())
@@ -630,7 +630,7 @@ class AccountJournal(models.Model):
                         'o OP-X 0001-00000001') % (move.l10n_latam_document_number or move.name))
             else:
                 voucher_number = (move.l10n_latam_document_number or '').replace('-', '')
-            content += voucher_number.zfill(16)[:16]
+            content += voucher_number[-16:].zfill(16)
 
             # 7 - Fecha del comprobante
             content += fields.Date.from_string(move.date).strftime('%d/%m/%Y')
