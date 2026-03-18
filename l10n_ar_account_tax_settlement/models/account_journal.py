@@ -1555,7 +1555,7 @@ class AccountJournal(models.Model):
                 content += '\r\n'
 
         return [{
-            'txt_filename': ('Retenciones' if payment else 'Percepciones') + '_iva.txt',
+            'txt_filename': ('Retenciones' if payment else 'Percepciones') + '_iva.csv',
             'txt_content': content,
         }]
 

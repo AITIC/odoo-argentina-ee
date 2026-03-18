@@ -2,6 +2,14 @@
 
 Todas las modificaciones relevantes de este módulo se documentarán aquí.
 
+## [15.0.1.8.2] - 2026-02-27
+- Actualización de la versión en __manifest__.py a 15.0.1.9.2.
+- Modificación de archivo .txt a .csv para retenciones_iva_files_values
+
+## [15.0.1.8.1] - 2026-02-27
+- Actualización de la versión en __manifest__.py a 15.0.1.9.1.
+- Implementación de Normativa ARCA A112R
+
 
 ## [15.0.1.8.1] - 2026-02-27
 - Actualización de la versión en __manifest__.py a 15.0.1.8.1.
