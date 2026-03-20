@@ -1,5 +1,15 @@
 # Changelog
 
+
+## [17.0.1.8.5] - 2026-03-01
+### Corrección  
+ - Se traslada todo lo desarrollado previamente de las version 17.0.1.7.[3-4-5], al módulo l10n_ar_withholding_arba debido a la necesidad de utilizar los campos lot_name y activity definidos en ese módulo
+
+## [17.0.1.7.5] - 2026-03-01
+### Mejora  
+ - Desarrollo para archivos .txt según Resolución Normativa ARBA 22/2025 - Entrada en vigor 1/3 - Emisión de Comprobante de Retención: Comprobante A-122R
+
+
 ## [17.0.1.7.4] - 2026-03-01
 ### Mejora  
  - Desarrollo de nuevos archivos txt para la presentación de declaraciones juradas de impuestos provinciales de ARBA.
