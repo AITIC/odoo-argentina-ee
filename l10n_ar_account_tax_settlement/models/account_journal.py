@@ -459,7 +459,32 @@ class AccountJournal(models.Model):
         credito = ''
 
         company_currency = self.company_id.currency_id
-        for line in move_lines.sorted('date'):
+
+        # Consolidar apuntes duplicados del mismo impuesto en el mismo
+        # comprobante. Odoo puede emitir >1 account.move.line con el mismo
+        # tax_line_id sobre una misma factura/NC (ej: líneas de producto con
+        # price_unit negativo, o recomputo parcial de impuestos). Sin esta
+        # consolidación, el TXT duplica el comprobante con montos parciales
+        # y e-ARCIBA lo rechaza.
+        from collections import defaultdict
+        _consol = defaultdict(lambda: {'balance': 0.0, 'tax_base_amount': 0.0})
+        for _l in move_lines:
+            _consol[(_l.move_id.id, _l.tax_line_id.id)]['balance'] += _l.balance
+            _consol[(_l.move_id.id, _l.tax_line_id.id)]['tax_base_amount'] += _l.tax_base_amount
+
+        _seen = set()
+        _unique_lines = self.env['account.move.line']
+        for _l in move_lines.sorted('date'):
+            _key = (_l.move_id.id, _l.tax_line_id.id)
+            if _key in _seen:
+                continue
+            _seen.add(_key)
+            _unique_lines |= _l
+
+        for line in _unique_lines:
+            _key = (line.move_id.id, line.tax_line_id.id)
+            _c_balance = _consol[_key]['balance']
+            _c_tax_base = _consol[_key]['tax_base_amount']
 
             # pay_group = payment.payment_group_id
             move = line.move_id
@@ -519,7 +544,7 @@ class AccountJournal(models.Model):
                 # este, multiplicado por la alícuota, debe ser igual al importe
                 # a retener/percibir
                 # AGIP requiere valores absolutos
-                taxable_amount = abs(line.tax_base_amount)
+                taxable_amount = abs(_c_tax_base)
                 content += format_amount(taxable_amount, 16, 2, ',')
 
                 # 5 - Nro. certificado propio
@@ -576,7 +601,7 @@ class AccountJournal(models.Model):
                 if line.currency_id and line.currency_id != line.company_id.currency_id:
                     ret_perc_applied = float_round((taxable_amount*alicuot/100), precision_digits=2)
                 # AGIP requiere valores absolutos
-                content += format_amount(abs(line.balance if not ret_perc_applied else ret_perc_applied), 16, 2, ',')
+                content += format_amount(abs(_c_balance if not ret_perc_applied else ret_perc_applied), 16, 2, ',')
 
                 # 13 - Alícuota
                 content += format_amount(alicuot, 5, 2, ',')
@@ -657,7 +682,7 @@ class AccountJournal(models.Model):
                 # El monto del comprobante NO debe incluir la percepción IIBB que estamos reportando
                 # porque la percepción se aplica SOBRE el comprobante, no es parte del comprobante
                 total_amount_with_perception = abs((1 if line.move_id.is_inbound() else -1) * line.move_id.amount_total_signed)
-                perception_amount = abs(line.balance)
+                perception_amount = abs(_c_balance)
                 total_amount = total_amount_with_perception - perception_amount
 
                 # Según AGIP: Campo 18 (Monto Sujeto a Retención/Percepción) = Campo 8 - Campo 17 - Campo 16
@@ -774,11 +799,11 @@ class AccountJournal(models.Model):
             if line.currency_id and line.currency_id != line.company_id.currency_id:
                 ret_perc_applied = float_round((abs(taxable_amount)*alicuot/100), precision_digits=2)
             # AGIP requiere valores absolutos
-            content += format_amount(abs(-line.balance if not ret_perc_applied else ret_perc_applied), 16, 2, ',')
+            content += format_amount(abs(-_c_balance if not ret_perc_applied else ret_perc_applied), 16, 2, ',')
 
             # 21 - Monto Total Retenido/Percibido
             # AGIP requiere valores absolutos
-            content += format_amount(abs(-line.balance if not ret_perc_applied else ret_perc_applied), 16, 2, ',')
+            content += format_amount(abs(-_c_balance if not ret_perc_applied else ret_perc_applied), 16, 2, ',')
 
             # # 22 - Aceptacion
             content += ' '
