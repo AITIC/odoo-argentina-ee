@@ -1178,8 +1178,13 @@ class AccountJournal(models.Model):
             # digitos y ademas sacamos estos datos del pago y no del nro de doc
             # del payment group
             if payment:
-                # el numero de la retencion
-                pos, number = get_pos_and_number(line.withholding_id.name)
+                # el numero de certificado de la retencion va guardado en el
+                # name del apunte (cada withholding line crea su propio apunte
+                # con su propio name). No usar withholding_id.name porque
+                # cuando hay varias retenciones del mismo impuesto en un mismo
+                # pago, el compute devuelve siempre la primera y se repite el
+                # mismo numero de certificado para todas las lineas.
+                pos, number = get_pos_and_number(line.name or '')
                 content += '{:>04s}'.format(pos)
                 content += '{:>016s}'.format(number)
             else:
