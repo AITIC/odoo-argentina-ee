@@ -1,6 +1,19 @@
 # Changelog
 
 
+## [17.0.1.8.7] - 2026-05-22
+### Corrección
+ - **SIFERE - Generación de archivos TXT (iibb_sufrido_files_values):**
+   - Corrección del número de certificado de retención en el TXT cuando un mismo comprobante de pago contiene dos o más retenciones del mismo impuesto.
+   - Antes el archivo repetía el mismo número de certificado en todas las líneas de retención (se tomaba siempre el primero) porque se leía desde `line.withholding_id.name`, y el compute de `withholding_id` devuelve siempre el primer match cuando hay varias retenciones del mismo `tax_id` en el pago.
+   - Ahora se usa `line.name`, que en cada apunte contable guarda el número de certificado correspondiente a su propia retención (el sync `_prepare_witholding_write_off_vals` lo setea por línea).
+
+## [17.0.1.8.6] - 2026-04-16
+### Corrección
+ - **AGIP - Generación de archivos TXT (iibb_aplicado_agip_files_values) [TKT5947]:**
+   - Consolidación de apuntes duplicados del mismo impuesto sobre un mismo comprobante. Odoo puede emitir más de un `account.move.line` con el mismo `tax_line_id` sobre una misma factura/NC (por ejemplo: líneas de producto con `price_unit` negativo, o recomputo parcial de impuestos). Sin esta consolidación, el TXT duplicaba el comprobante con montos parciales y e-ARCIBA lo rechazaba.
+   - Se agrega un pre-procesamiento que suma `balance` y `tax_base_amount` por `(move_id, tax_line_id)`, y luego itera una sola línea por combinación usando los valores consolidados (`_c_balance`, `_c_tax_base`) en los campos: 4 (NC - Monto), 12 (NC - Ret/percep a deducir), 8 (Monto del comprobante - vía `perception_amount`), 20 (Retención/Percepción Practicada) y 21 (Monto Total Retenido/Percibido).
+
 ## [17.0.1.8.5] - 2026-03-01
 ### Corrección  
  - Se traslada todo lo desarrollado previamente de las version 17.0.1.7.[3-4-5], al módulo l10n_ar_withholding_arba debido a la necesidad de utilizar los campos lot_name y activity definidos en ese módulo
