@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="l10n_ar_edi_ux.ArcaStatusSystray">
+        <Dropdown t-if="state.enabled" position="'bottom-end'" autoOpen="false"
+                  menuClass="'o_l10n_ar_arca_status'">
+            <t t-set-slot="toggler">
+                <span class="small">ARCA connection</span>
+                <i t-if="hasFailure" class="fa fa-circle text-danger ms-1 small" aria-label="Service unavailable"/>
+            </t>
+            <div class="px-3 py-2 border-bottom">
+                <strong>AFIP / ARCA</strong>
+                <span t-if="state.environment" class="small text-muted ms-2" t-esc="environmentLabel"/>
+            </div>
+            <t t-foreach="services" t-as="service" t-key="service.key">
+                <div class="px-3 py-2">
+                    <div class="d-flex justify-content-between gap-4">
+                        <span class="text-muted" t-esc="service.name"/>
+                        <span t-att-class="{
+                            'text-success': service.status === 'available',
+                            'text-danger': service.status === 'unavailable',
+                            'text-muted': service.status === 'unknown',
+                        }" t-esc="service.label"/>
+                    </div>
+                    <small t-if="service.error" class="d-block text-danger mt-1" t-esc="service.error"/>
+                </div>
+            </t>
+            <div class="px-3 pb-2 small text-muted">
+                Last check: <span class="o_arca_last_check" t-esc="lastCheckLabel"/>
+            </div>
+            <div class="px-3 pb-2 small text-muted">
+                WSAA checks availability, not the company's certificates or authorizations.
+            </div>
+            <div t-if="!state.environment" class="px-3 pb-2 text-warning small">
+                Configure the ARCA environment in the company's accounting settings.
+            </div>
+            <div t-if="state.error" class="px-3 pb-2 text-danger small" t-esc="state.error"/>
+            <div class="px-3 py-2 border-top">
+                <button type="button" class="btn btn-sm btn-outline-secondary w-100 o_arca_refresh"
+                        t-att-disabled="state.loading || !state.environment" t-on-click.stop="onRefreshClick">
+                    <i class="fa fa-refresh me-1" t-att-class="{'fa-spin': state.loading}"/>
+                    <t t-if="state.loading">Checking...</t>
+                    <t t-else="">Check now</t>
+                </button>
+            </div>
+        </Dropdown>
+    </t>
+</templates>
