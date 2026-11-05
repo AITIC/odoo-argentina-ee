@@ -9,4 +9,3 @@ from . import account_journal
 from . import l10n_ar_boarding_permission
 from . import res_config_settings
 from . import account_payment
-from . import arca_service_status
